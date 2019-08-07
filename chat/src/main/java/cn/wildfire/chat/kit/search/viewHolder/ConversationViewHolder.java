@@ -4,13 +4,15 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProviders;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProviders;
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import cn.wildfire.chat.kit.WfcUIKit;
 import cn.wildfire.chat.kit.group.GroupViewModel;
 import cn.wildfire.chat.kit.user.UserViewModel;
 import cn.wildfirechat.chat.R;
@@ -34,7 +36,7 @@ public class ConversationViewHolder extends ResultItemViewHolder<ConversationSea
         super(fragment, itemView);
         ButterKnife.bind(this, itemView);
 
-        userViewModel = ViewModelProviders.of(fragment).get(UserViewModel.class);
+        userViewModel = WfcUIKit.getAppScopeViewModel(UserViewModel.class);
         groupViewModel = ViewModelProviders.of(fragment).get(GroupViewModel.class);
     }
 
@@ -45,7 +47,7 @@ public class ConversationViewHolder extends ResultItemViewHolder<ConversationSea
             UserInfo userInfo = userViewModel.getUserInfo(conversation.target, false);
             if (userInfo != null) {
                 Glide.with(fragment).load(userInfo.portrait).apply(new RequestOptions().centerCrop().placeholder(R.mipmap.avatar_def)).into(portraitImageView);
-                nameTextView.setText(userInfo.displayName);
+                nameTextView.setText(userViewModel.getUserDisplayName(userInfo));
             }
         } else {
             GroupInfo groupInfo = groupViewModel.getGroupInfo(conversation.target, false);
@@ -56,7 +58,7 @@ public class ConversationViewHolder extends ResultItemViewHolder<ConversationSea
         }
 
         if (conversationSearchResult.marchedMessage != null) {
-            descTextView.setText(conversationSearchResult.marchedMessage.content.digest());
+            descTextView.setText(conversationSearchResult.marchedMessage.digest());
         } else {
             descTextView.setText(conversationSearchResult.marchedCount + "条记录");
         }

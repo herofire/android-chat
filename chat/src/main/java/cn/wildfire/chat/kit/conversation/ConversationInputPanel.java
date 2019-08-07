@@ -1,9 +1,11 @@
 package cn.wildfire.chat.kit.conversation;
 
+import android.Manifest;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.text.Editable;
@@ -17,7 +19,14 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.FragmentActivity;
+import androidx.lifecycle.ViewModelProviders;
 
 import com.lqr.emoji.EmotionLayout;
 import com.lqr.emoji.IEmotionExtClickListener;
@@ -27,11 +36,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.FragmentActivity;
-import androidx.lifecycle.ViewModelProviders;
-import androidx.viewpager.widget.ViewPager;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
@@ -43,6 +47,7 @@ import cn.wildfire.chat.kit.conversation.mention.MentionSpan;
 import cn.wildfire.chat.kit.group.GroupViewModel;
 import cn.wildfire.chat.kit.widget.InputAwareLayout;
 import cn.wildfire.chat.kit.widget.KeyboardHeightFrameLayout;
+import cn.wildfire.chat.kit.widget.ViewPagerFixed;
 import cn.wildfirechat.chat.R;
 import cn.wildfirechat.message.TextMessageContent;
 import cn.wildfirechat.message.TypingMessageContent;
@@ -53,6 +58,12 @@ import cn.wildfirechat.model.GroupInfo;
 import static cn.wildfire.chat.kit.conversation.ConversationActivity.REQUEST_PICK_MENTION_CONTACT;
 
 public class ConversationInputPanel extends FrameLayout implements IEmotionSelectedListener {
+
+    @Bind(R.id.inputContainerLinearLayout)
+    LinearLayout inputContainerLinearLayout;
+    @Bind(R.id.disableInputTipTextView)
+    TextView disableInputTipTextView;
+
     @Bind(R.id.audioImageView)
     ImageView audioImageView;
     @Bind(R.id.audioButton)
@@ -73,16 +84,15 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
     @Bind(R.id.extContainerContainerLayout)
     KeyboardHeightFrameLayout extContainerFrameLayout;
 
-    @Bind(R.id.inputPanelFrameLayout)
-    FrameLayout inputContainerFrameLayout;
     @Bind(R.id.conversationExtViewPager)
-    ViewPager extViewPager;
+    ViewPagerFixed extViewPager;
 
     ConversationExtension extension;
     private Conversation conversation;
     private ConversationViewModel conversationViewModel;
     private InputAwareLayout rootLinearLayout;
     private FragmentActivity activity;
+    private AudioRecorderPanel audioRecorderPanel;
 
     private long lastTypingTime;
     private String draftString;
@@ -127,6 +137,22 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
         setDraft();
     }
 
+    public void disableInput(String tip) {
+        collapse();
+        inputContainerLinearLayout.setVisibility(GONE);
+        disableInputTipTextView.setVisibility(VISIBLE);
+        disableInputTipTextView.setText(tip);
+    }
+
+    public void enableInput() {
+        inputContainerLinearLayout.setVisibility(VISIBLE);
+        disableInputTipTextView.setVisibility(GONE);
+    }
+
+    public void onDestroy() {
+        this.extension.onDestroy();
+    }
+
     public void init(FragmentActivity activity, InputAwareLayout rootInputAwareLayout) {
         LayoutInflater.from(getContext()).inflate(R.layout.conversation_input_panel, this, true);
         ButterKnife.bind(this, this);
@@ -168,8 +194,7 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
         });
 
         // audio record panel
-        AudioRecorderPanel audioRecorderPanel = new AudioRecorderPanel(getContext());
-        audioRecorderPanel.attach(rootLinearLayout, audioButton);
+        audioRecorderPanel = new AudioRecorderPanel(getContext());
         audioRecorderPanel.setRecordListener(new AudioRecorderPanel.OnRecordListener() {
             @Override
             public void onRecordSuccess(String audioFile, int duration) {
@@ -182,7 +207,7 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
 
             @Override
             public void onRecordFail(String reason) {
-                // TODO
+                Toast.makeText(activity, reason, Toast.LENGTH_SHORT).show();
             }
 
             @Override
@@ -213,6 +238,7 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
     @OnClick(R.id.extImageView)
     void onExtImageViewClick() {
         if (rootLinearLayout.getCurrentInput() == extContainerFrameLayout) {
+            rootLinearLayout.showSoftkey(editText);
             hideConversationExtension();
         } else {
             emotionImageView.setImageResource(R.mipmap.ic_cheat_emo);
@@ -236,15 +262,19 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
             if (conversation.type == Conversation.ConversationType.Group) {
                 if (count == 1 && s.charAt(start) == '@') {
 //                    if (start == 0 || s.charAt(start - 1) == ' ') {
-                    Intent intent = new Intent(activity, MentionGroupMemberActivity.class);
-                    GroupViewModel groupViewModel = ViewModelProviders.of(activity).get(GroupViewModel.class);
-                    GroupInfo groupInfo = groupViewModel.getGroupInfo(conversation.target, false);
-                    intent.putExtra("groupInfo", groupInfo);
-                    activity.startActivityForResult(intent, REQUEST_PICK_MENTION_CONTACT);
+                    mentionGroupMember();
 //                    }
                 }
             }
         }
+    }
+
+    private void mentionGroupMember() {
+        Intent intent = new Intent(activity, MentionGroupMemberActivity.class);
+        GroupViewModel groupViewModel = ViewModelProviders.of(activity).get(GroupViewModel.class);
+        GroupInfo groupInfo = groupViewModel.getGroupInfo(conversation.target, false);
+        intent.putExtra("groupInfo", groupInfo);
+        activity.startActivityForResult(intent, REQUEST_PICK_MENTION_CONTACT);
     }
 
     @OnTextChanged(value = R.id.editText, callback = OnTextChanged.Callback.AFTER_TEXT_CHANGED)
@@ -263,14 +293,22 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
 
     @OnClick(R.id.audioImageView)
     public void showRecordPanel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (activity.checkCallingOrSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                activity.requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 100);
+                return;
+            }
+        }
+
         if (audioButton.isShown()) {
             hideAudioButton();
             editText.requestFocus();
             rootLinearLayout.showSoftkey(editText);
         } else {
-            editText.clearFocus();
+//            editText.clearFocus();
             showAudioButton();
             hideEmotionLayout();
+            rootLinearLayout.hideSoftkey(editText, null);
             hideConversationExtension();
         }
     }
@@ -343,6 +381,7 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
 
     private void showAudioButton() {
         audioButton.setVisibility(View.VISIBLE);
+        audioRecorderPanel.attach(rootLinearLayout, audioButton);
         editText.setVisibility(View.GONE);
         sendButton.setVisibility(View.GONE);
         audioImageView.setImageResource(R.mipmap.ic_cheat_keyboard);
@@ -353,6 +392,7 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
 
     private void hideAudioButton() {
         audioButton.setVisibility(View.GONE);
+        audioRecorderPanel.deattch();
         editText.setVisibility(View.VISIBLE);
         if (TextUtils.isEmpty(editText.getText())) {
             sendButton.setVisibility(View.GONE);
@@ -373,7 +413,6 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
 
     private void hideEmotionLayout() {
         emotionImageView.setImageResource(R.mipmap.ic_cheat_emo);
-        rootLinearLayout.showSoftkey(editText);
         if (onConversationInputPanelStateChangeListener != null) {
             onConversationInputPanelStateChangeListener.onInputPanelCollapsed();
         }
@@ -390,7 +429,6 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
     }
 
     private void hideConversationExtension() {
-        rootLinearLayout.showSoftkey(editText);
         if (onConversationInputPanelStateChangeListener != null) {
             onConversationInputPanelStateChangeListener.onInputPanelCollapsed();
         }

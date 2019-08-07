@@ -5,7 +5,12 @@ import android.content.Context;
 
 import com.tencent.bugly.crashreport.CrashReport;
 
+import java.io.File;
+
+import cn.wildfire.chat.app.third.location.viewholder.LocationMessageContentViewHolder;
 import cn.wildfire.chat.kit.WfcUIKit;
+import cn.wildfire.chat.kit.conversation.message.viewholder.MessageViewHolderManager;
+import cn.wildfirechat.chat.BuildConfig;
 
 
 public class MyApp extends BaseApp {
@@ -17,11 +22,32 @@ public class MyApp extends BaseApp {
         super.onCreate();
 
         // bugly，务必替换为你自己的!!!
-        CrashReport.initCrashReport(getApplicationContext(), "34490ba79f", false);
+        CrashReport.initCrashReport(getApplicationContext(), BuildConfig.BuglyId, false);
         // 只在主进程初始化
-        if (getCurProcessName(this).equals("cn.wildfirechat.chat")) {
+        if (getCurProcessName(this).equals(BuildConfig.APPLICATION_ID)) {
             wfcUIKit = new WfcUIKit();
             wfcUIKit.init(this);
+            MessageViewHolderManager.getInstance().registerMessageViewHolder(LocationMessageContentViewHolder.class);
+            setupWFCDirs();
+        }
+    }
+
+    private void setupWFCDirs() {
+        File file = new File(Config.VIDEO_SAVE_DIR);
+        if (!file.exists()) {
+            file.mkdirs();
+        }
+        file = new File(Config.AUDIO_SAVE_DIR);
+        if (!file.exists()) {
+            file.mkdirs();
+        }
+        file = new File(Config.FILE_SAVE_DIR);
+        if (!file.exists()) {
+            file.mkdirs();
+        }
+        file = new File(Config.PHOTO_SAVE_DIR);
+        if (!file.exists()) {
+            file.mkdirs();
         }
     }
 

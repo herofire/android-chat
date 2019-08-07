@@ -5,9 +5,11 @@ import android.os.Parcel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import cn.wildfirechat.message.Message;
 import cn.wildfirechat.message.core.ContentTag;
 import cn.wildfirechat.message.core.MessagePayload;
 import cn.wildfirechat.message.core.PersistFlag;
+import cn.wildfirechat.remote.ChatManager;
 
 import static cn.wildfirechat.message.core.MessageContentType.ContentType_TRANSFER_GROUP_OWNER;
 
@@ -16,7 +18,7 @@ import static cn.wildfirechat.message.core.MessageContentType.ContentType_TRANSF
  */
 
 @ContentTag(type = ContentType_TRANSFER_GROUP_OWNER, flag = PersistFlag.Persist)
-public class TransferGroupOwnerNotificationContent extends NotificationMessageContent {
+public class TransferGroupOwnerNotificationContent extends GroupNotificationMessageContent {
     public String operator;
     public String newOwner;
 
@@ -24,15 +26,15 @@ public class TransferGroupOwnerNotificationContent extends NotificationMessageCo
     }
 
     @Override
-    public String formatNotification() {
+    public String formatNotification(Message message) {
         StringBuilder sb = new StringBuilder();
         if (fromSelf) {
             sb.append("您把群组转让给了");
         } else {
-            sb.append(operator);
+            sb.append(ChatManager.Instance().getGroupMemberDisplayName(groupId, operator));
             sb.append("把群组转让给了");
         }
-        sb.append(newOwner);
+        sb.append(ChatManager.Instance().getGroupMemberDisplayName(groupId, newOwner));
 
         return sb.toString();
     }
@@ -43,9 +45,10 @@ public class TransferGroupOwnerNotificationContent extends NotificationMessageCo
 
         try {
             JSONObject objWrite = new JSONObject();
+            objWrite.put("g", groupId);
             objWrite.put("o", operator);
             objWrite.put("m", newOwner);
-            payload.content = objWrite.toString();
+            payload.binaryContent = objWrite.toString().getBytes();
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -57,7 +60,8 @@ public class TransferGroupOwnerNotificationContent extends NotificationMessageCo
     public void decode(MessagePayload payload) {
         try {
             if (payload.content != null) {
-                JSONObject jsonObject = new JSONObject(payload.content);
+                JSONObject jsonObject = new JSONObject(new String(payload.binaryContent));
+                groupId = jsonObject.optString("g");
                 operator = jsonObject.optString("o");
                 newOwner = jsonObject.optString("m");
             }
@@ -65,12 +69,6 @@ public class TransferGroupOwnerNotificationContent extends NotificationMessageCo
             e.printStackTrace();
         }
     }
-
-    @Override
-    public String digest() {
-        return formatNotification();
-    }
-
 
     @Override
     public int describeContents() {

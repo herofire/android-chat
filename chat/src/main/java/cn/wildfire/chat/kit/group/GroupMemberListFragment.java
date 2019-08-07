@@ -3,20 +3,24 @@ package cn.wildfire.chat.kit.group;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.TextUtils;
+
+import androidx.annotation.Nullable;
+import androidx.lifecycle.ViewModelProviders;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import androidx.annotation.Nullable;
-import androidx.lifecycle.ViewModelProviders;
-import cn.wildfire.chat.kit.contact.BaseContactFragment;
-import cn.wildfire.chat.kit.contact.ContactAdapter;
+import cn.wildfire.chat.kit.contact.BaseUserListFragment;
+import cn.wildfire.chat.kit.contact.UserListAdapter;
 import cn.wildfire.chat.kit.contact.ContactViewModel;
 import cn.wildfire.chat.kit.contact.model.UIUserInfo;
+import cn.wildfire.chat.kit.user.UserViewModel;
 import cn.wildfirechat.model.GroupInfo;
 import cn.wildfirechat.model.GroupMember;
+import cn.wildfirechat.model.UserInfo;
 
-public class GroupMemberListFragment extends BaseContactFragment {
+public class GroupMemberListFragment extends BaseUserListFragment {
     private GroupInfo groupInfo;
 
     public static GroupMemberListFragment newInstance(GroupInfo groupInfo) {
@@ -34,8 +38,8 @@ public class GroupMemberListFragment extends BaseContactFragment {
     }
 
     @Override
-    public ContactAdapter onCreateContactAdapter() {
-        ContactAdapter contactAdapter = new ContactAdapter(this);
+    public UserListAdapter onCreateUserListAdapter() {
+        UserListAdapter userListAdapter = new UserListAdapter(this);
 
         GroupViewModel groupViewModel = ViewModelProviders.of(getActivity()).get(GroupViewModel.class);
         List<GroupMember> members = groupViewModel.getGroupMembers(groupInfo.target, false);
@@ -44,16 +48,25 @@ public class GroupMemberListFragment extends BaseContactFragment {
             memberIds.add(member.memberId);
         }
         ContactViewModel contactViewModel = ViewModelProviders.of(getActivity()).get(ContactViewModel.class);
-        List<UIUserInfo> contacts = userInfoToUIUserInfo(contactViewModel.getContacts(memberIds));
-        contactAdapter.setContacts(contacts);
+        List<UserInfo> userInfos = UserViewModel.getUsers(memberIds, groupInfo.target);
+        for (GroupMember member : members) {
+            for (UserInfo userInfo : userInfos) {
+                if (!TextUtils.isEmpty(member.alias) && member.memberId.equals(userInfo.uid)) {
+                    userInfo.displayName = member.alias;
+                    break;
+                }
+            }
+        }
+        List<UIUserInfo> users = userInfoToUIUserInfo(userInfos);
+        userListAdapter.setUsers(users);
 
-        return contactAdapter;
+        return userListAdapter;
     }
 
     @Override
-    public void onContactClick(UIUserInfo userInfo) {
+    public void onUserClick(UIUserInfo userInfo) {
         Intent intent = new Intent();
-        intent.putExtra("contact", userInfo.getUserInfo());
+        intent.putExtra("userId", userInfo.getUserInfo().uid);
         getActivity().setResult(Activity.RESULT_OK, intent);
         getActivity().finish();
     }

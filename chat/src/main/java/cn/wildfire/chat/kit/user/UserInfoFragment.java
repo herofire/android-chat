@@ -11,6 +11,11 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.MutableLiveData;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 import com.lqr.imagepicker.ImagePicker;
@@ -19,15 +24,10 @@ import com.lqr.optionitemview.OptionItemView;
 
 import java.util.ArrayList;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.ViewModelProviders;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
-import cn.wildfire.chat.app.Config;
+import cn.wildfire.chat.kit.WfcScheme;
 import cn.wildfire.chat.kit.WfcUIKit;
 import cn.wildfire.chat.kit.common.OperateResult;
 import cn.wildfire.chat.kit.contact.ContactViewModel;
@@ -91,8 +91,8 @@ public class UserInfoFragment extends Fragment {
     }
 
     private void init() {
-        userViewModel = ViewModelProviders.of(this).get(UserViewModel.class);
-        contactViewModel = ViewModelProviders.of(this).get(ContactViewModel.class);
+        userViewModel = WfcUIKit.getAppScopeViewModel(UserViewModel.class);
+        contactViewModel = WfcUIKit.getAppScopeViewModel(ContactViewModel.class);
         String selfUid = userViewModel.getUserId();
         if (selfUid.equals(userInfo.uid)) {
             // self
@@ -100,6 +100,7 @@ public class UserInfoFragment extends Fragment {
             voipChatButton.setVisibility(View.GONE);
             inviteButton.setVisibility(View.GONE);
             qrCodeOptionItemView.setVisibility(View.VISIBLE);
+            aliasOptionItemView.setVisibility(View.VISIBLE);
         } else if (contactViewModel.isFriend(userInfo.uid)) {
             // friend
             chatButton.setVisibility(View.VISIBLE);
@@ -130,7 +131,7 @@ public class UserInfoFragment extends Fragment {
         Glide.with(this).load(userInfo.portrait).apply(new RequestOptions().placeholder(R.mipmap.avatar_def).centerCrop()).into(portraitImageView);
         nameTextView.setText(userInfo.name);
         nameTextView.setVisibility(View.GONE);
-        nickyNameTextView.setText(userInfo.displayName);
+        nickyNameTextView.setText(userViewModel.getUserDisplayName(userInfo));
         if (ChatManager.Instance().isMyFriend(userInfo.uid)) {
             mobileTextView.setText("电话:" + userInfo.mobile);
             mobileTextView.setVisibility(View.VISIBLE);
@@ -208,7 +209,7 @@ public class UserInfoFragment extends Fragment {
     @OnClick(R.id.qrCodeOptionItemView)
     void showMyQRCode() {
         UserInfo userInfo = userViewModel.getUserInfo(userViewModel.getUserId(), false);
-        String qrCodeValue = Config.QR_CODE_PREFIX_USER + userInfo.uid;
+        String qrCodeValue = WfcScheme.QR_CODE_PREFIX_USER + userInfo.uid;
         startActivity(QRCodeActivity.buildQRCodeIntent(getActivity(), "二维码", userInfo.portrait, qrCodeValue));
     }
 }

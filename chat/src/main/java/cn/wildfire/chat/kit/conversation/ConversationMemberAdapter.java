@@ -6,14 +6,15 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 
-import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
-import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.RecyclerView;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
@@ -42,21 +43,33 @@ public class ConversationMemberAdapter extends RecyclerView.Adapter<Conversation
         notifyItemRangeInserted(startIndex, members.size());
     }
 
-    public void removeMembers(List<String> memberIds) {
-        List<Integer> indexes = new ArrayList<>(memberIds.size());
-        for (int j = 0; j < memberIds.size(); j++) {
-            for (int i = 0; i < members.size(); i++) {
-                if (members.get(i).uid.equals(memberIds.get(j))) {
-                    indexes.add(i);
-                    break;
-                }
+    public void updateMember(UserInfo userInfo) {
+        if (this.members == null) {
+            return;
+        }
+        for (int i = 0; i < members.size(); i++) {
+            if (members.get(i).uid.equals(userInfo.uid)) {
+                members.set(i, userInfo);
+                notifyItemChanged(i);
+                break;
             }
         }
+    }
 
-        for (int index : indexes) {
-            members.remove(index);
-            notifyItemRemoved(index);
+    public void removeMembers(List<String> memberIds) {
+        Iterator<UserInfo> iterator = members.iterator();
+        while (iterator.hasNext()) {
+            UserInfo userInfo = iterator.next();
+            if (memberIds.contains(userInfo.uid)) {
+                iterator.remove();
+                memberIds.remove(userInfo.uid);
+            }
+
+            if (memberIds.size() == 0) {
+                break;
+            }
         }
+        notifyDataSetChanged();
     }
 
     public void setOnMemberClickListener(OnMemberClickListener onMemberClickListener) {
@@ -121,7 +134,7 @@ public class ConversationMemberAdapter extends RecyclerView.Adapter<Conversation
             }
             switch (type) {
                 case TYPE_USER:
-                    if (userInfo != null){
+                    if (userInfo != null) {
                         onMemberClickListener.onUserMemberClick(userInfo);
                     }
                     break;

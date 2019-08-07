@@ -9,20 +9,21 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Observer;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 import com.lqr.optionitemview.OptionItemView;
 
 import java.util.List;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProviders;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import cn.wildfire.chat.kit.WfcUIKit;
 import cn.wildfire.chat.kit.setting.SettingActivity;
 import cn.wildfire.chat.kit.user.UserInfoActivity;
 import cn.wildfire.chat.kit.user.UserViewModel;
@@ -52,6 +53,9 @@ public class MeFragment extends Fragment {
     private Observer<List<UserInfo>> userInfoLiveDataObserver = new Observer<List<UserInfo>>() {
         @Override
         public void onChanged(@Nullable List<UserInfo> userInfos) {
+            if (userInfos == null) {
+                return;
+            }
             for (UserInfo info : userInfos) {
                 if (info.uid.equals(userViewModel.getUserId())) {
                     userInfo = info;
@@ -78,13 +82,15 @@ public class MeFragment extends Fragment {
     }
 
     private void init() {
-        userViewModel = ViewModelProviders.of(this).get(UserViewModel.class);
-        userInfo = userViewModel.getUserInfo(userViewModel.getUserId(), true);
+        userViewModel = WfcUIKit.getAppScopeViewModel(UserViewModel.class);
+        userViewModel.getUserInfoAsync(userViewModel.getUserId(), true)
+                .observe(this, info -> {
+                    userInfo = info;
+                    if (userInfo != null) {
+                        updateUserInfo(userInfo);
+                    }
+                });
         userViewModel.userInfoLiveData().observeForever(userInfoLiveDataObserver);
-        if (userInfo != null) {
-            updateUserInfo(userInfo);
-        }
-
     }
 
     @Override

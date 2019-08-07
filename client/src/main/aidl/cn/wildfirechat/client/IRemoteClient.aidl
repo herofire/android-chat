@@ -14,6 +14,7 @@ import cn.wildfirechat.client.IGetChatRoomMembersInfoCallback;
 import cn.wildfirechat.client.IGetGroupInfoCallback;
 import cn.wildfirechat.client.ICreateChannelCallback;
 import cn.wildfirechat.client.ISearchChannelCallback;
+import cn.wildfirechat.client.IGetRemoteMessageCallback;
 
 import cn.wildfirechat.client.IOnFriendUpdateListener;
 import cn.wildfirechat.client.IOnGroupInfoUpdateListener;
@@ -48,7 +49,7 @@ import java.util.Map;
 
 interface IRemoteClient {
     String getClientId();
-    oneway void connect(in String userId, in String token);
+    boolean connect(in String userId, in String token);
     oneway void disconnect(in boolean clearSession);
     oneway void setForeground(in int isForeground);
     oneway void onNetworkChange();
@@ -72,6 +73,11 @@ interface IRemoteClient {
     List<ConversationInfo> getConversationList(in int[] conversationTypes, in int[] lines);
     ConversationInfo getConversation(in int conversationType, in String target, in int line);
     List<Message> getMessages(in Conversation conversation, in long fromIndex, in boolean before, in int count, in String withUser);
+    List<Message> getMessagesEx(in int[] conversationTypes, in int[] lines, in int[] contentTypes, in long fromIndex, in boolean before, in int count, in String withUser);
+    List<Message> getMessagesEx2(in int[] conversationTypes, in int[] lines, in int messageStatus, in long fromIndex, in boolean before, in int count, in String withUser);
+
+    oneway void getRemoteMessages(in Conversation conversation, in long beforeMessageUid, in int count, in IGetRemoteMessageCallback callback);
+
     Message getMessage(in long messageId);
     Message getMessageByUid(in long messageUid);
 
@@ -82,13 +88,14 @@ interface IRemoteClient {
     UnreadCount getUnreadCountEx(in int[] conversationTypes, in int[] lines);
     oneway void clearUnreadStatus(in int conversationType, in String target, in int line);
     oneway void clearAllUnreadStatus();
+    oneway void clearMessages(in int conversationType, in String target, in int line);
     oneway void setMediaMessagePlayed(in long messageId);
     oneway void removeConversation(in int conversationType, in String target, in int line, in boolean clearMsg);
     oneway void setConversationTop(in int conversationType, in String target, in int line, in boolean top);
     oneway void setConversationDraft(in int conversationType, in String target, in int line, in String draft);
     oneway void setConversationSilent(in int conversationType, in String target, in int line, in boolean silent);
 
-    oneway void searchUser(in String keyword, in ISearchUserCallback callback);
+    oneway void searchUser(in String keyword, in boolean fuzzy, in ISearchUserCallback callback);
 
     boolean isMyFriend(in String userId);
     List<String> getMyFriendList(in boolean refresh);
@@ -103,6 +110,8 @@ interface IRemoteClient {
     oneway void setDeviceToken(in String token, in int pushType);
 
     List<FriendRequest> getFriendRequest(in boolean incomming);
+    String getFriendAlias(in String userId);
+    oneway void setFriendAlias(in String userId, in String alias, in IGeneralCallback callback);
     oneway void clearUnreadFriendRequestStatus();
     int getUnreadFriendRequestStatus();
     oneway void removeFriend(in String userId, in IGeneralCallback callback);
@@ -120,8 +129,8 @@ interface IRemoteClient {
     oneway void getChatRoomInfo(in String chatRoomId, in long updateDt, in IGetChatRoomInfoCallback callback);
     oneway void getChatRoomMembersInfo(in String chatRoomId, in int maxCount, in IGetChatRoomMembersInfoCallback callback);
     GroupInfo getGroupInfo(in String groupId, in boolean refresh);
-    UserInfo getUserInfo(in String userId, in boolean refresh);
-    List<UserInfo> getUserInfos(in List<String> userIds);
+    UserInfo getUserInfo(in String userId, in String groupId, in boolean refresh);
+    List<UserInfo> getUserInfos(in List<String> userIds, in String groupId);
 
     oneway void uploadMedia(in byte[] data, int mediaType, in IUploadMediaCallback callback);
     oneway void modifyMyInfo(in List<ModifyMyInfoEntry> values, in IGeneralCallback callback);
@@ -132,7 +141,9 @@ interface IRemoteClient {
     List<GroupSearchResult> searchGroups(in String keyword);
     List<UserInfo> searchFriends(in String keyworkd);
 
-    oneway void createGroup(in String groupId, in String groupName, in String groupPortrait, in List<String> memberIds, in int[] notifyLines, in MessagePayload notifyMsg, in IGeneralCallback2 callback);
+    String getEncodedClientId();
+
+    oneway void createGroup(in String groupId, in String groupName, in String groupPortrait, in int groupType, in List<String> memberIds, in int[] notifyLines, in MessagePayload notifyMsg, in IGeneralCallback2 callback);
     oneway void addGroupMembers(in String groupId, in List<String> memberIds, in int[] notifyLines, in MessagePayload notifyMsg, in IGeneralCallback callback);
     oneway void removeGroupMembers(in String groupId, in List<String> memberIds, in int[] notifyLines, in MessagePayload notifyMsg, in IGeneralCallback callback);
     oneway void quitGroup(in String groupId, in int[] notifyLines, in MessagePayload notifyMsg, in IGeneralCallback callback);
@@ -142,7 +153,9 @@ interface IRemoteClient {
     List<GroupMember> getGroupMembers(in String groupId, in boolean forceUpdate);
     GroupMember getGroupMember(in String groupId, in String memberId);
     oneway void transferGroup(in String groupId, in String newOwner, in int[] notifyLines, in MessagePayload notifyMsg, in IGeneralCallback callback);
-
+    oneway void setGroupManager(in String groupId, in boolean isSet, in List<String> memberIds, in int[] notifyLines, in MessagePayload notifyMsg, in IGeneralCallback callback);
+    byte[] encodeData(in byte[] data);
+    byte[] decodeData(in byte[] data);
     oneway void createChannel(in String channelId, in String channelName, in String channelPortrait, in String desc, in String extra, in ICreateChannelCallback callback);
     oneway void modifyChannelInfo(in String channelId, in int modifyType, in String newValue, in IGeneralCallback callback);
     ChannelInfo getChannelInfo(in String channelId, in boolean refresh);

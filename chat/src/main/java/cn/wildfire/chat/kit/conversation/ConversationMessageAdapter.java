@@ -8,6 +8,10 @@ import android.view.ViewStub;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.fragment.app.FragmentActivity;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.afollestad.materialdialogs.DialogAction;
 import com.afollestad.materialdialogs.MaterialDialog;
 
@@ -20,9 +24,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import androidx.annotation.NonNull;
-import androidx.fragment.app.FragmentActivity;
-import androidx.recyclerview.widget.RecyclerView;
 import cn.wildfire.chat.kit.annotation.EnableContextMenu;
 import cn.wildfire.chat.kit.annotation.LayoutRes;
 import cn.wildfire.chat.kit.annotation.MessageContextMenuItem;
@@ -66,6 +67,9 @@ public class ConversationMessageAdapter extends RecyclerView.Adapter<RecyclerVie
 
     public void setMessages(List<UiMessage> messages) {
         this.messages = messages;
+        if (this.messages == null) {
+            this.messages = new ArrayList<>();
+        }
     }
 
     public void setOnPortraitClickListener(OnPortraitClickListener onPortraitClickListener) {
@@ -77,7 +81,7 @@ public class ConversationMessageAdapter extends RecyclerView.Adapter<RecyclerVie
     }
 
     public void addNewMessage(UiMessage message) {
-        if (messages == null) {
+        if (message == null) {
             return;
         }
         if (contains(message)) {
@@ -89,11 +93,17 @@ public class ConversationMessageAdapter extends RecyclerView.Adapter<RecyclerVie
     }
 
     public void addMessagesAtHead(List<UiMessage> newMessages) {
+        if (newMessages == null || newMessages.isEmpty()) {
+            return;
+        }
         this.messages.addAll(0, newMessages);
         notifyItemRangeInserted(0, newMessages.size());
     }
 
     public void addMessagesAtTail(List<UiMessage> newMessages) {
+        if (newMessages == null || newMessages.isEmpty()) {
+            return;
+        }
         int insertStartPosition = this.messages.size();
         this.messages.addAll(newMessages);
         notifyItemRangeInserted(insertStartPosition, newMessages.size());
@@ -141,18 +151,11 @@ public class ConversationMessageAdapter extends RecyclerView.Adapter<RecyclerVie
         }
     }
 
-    // TODO 只更新可见的部分
-    public void updateUserInfos(List<UserInfo> userInfos) {
-        if (messages == null || messages.isEmpty()) {
-            return;
-        }
-        for (int i = 0; i < messages.size(); i++) {
-            for (UserInfo userInfo : userInfos) {
-                if (messages.get(i).message.sender.equals(userInfo.uid)) {
-                    notifyItemChanged(i);
-                    break;
-                }
-            }
+    @Override
+    public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
+        super.onViewRecycled(holder);
+        if (holder instanceof MessageContentViewHolder) {
+            ((MessageContentViewHolder) holder).onViewRecycled();
         }
     }
 
@@ -408,7 +411,7 @@ public class ConversationMessageAdapter extends RecyclerView.Adapter<RecyclerVie
 
     @Override
     public int getItemCount() {
-        return messages.size();
+        return messages == null ? 0 : messages.size();
     }
 
     public void showLoadingNewMessageProgressBar() {

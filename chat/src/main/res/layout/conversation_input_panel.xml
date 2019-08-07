@@ -12,6 +12,7 @@
         android:orientation="vertical">
 
         <LinearLayout
+            android:id="@+id/inputContainerLinearLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:animateLayoutChanges="true"
@@ -44,6 +45,7 @@
                     android:drawableBottom="@drawable/selector_edit_focus"
                     android:maxLines="4"
                     android:minHeight="30dp"
+                    android:textSize="16sp"
                     android:visibility="visible" />
 
                 <Button
@@ -68,11 +70,11 @@
 
             <ImageView
                 android:id="@+id/extImageView"
-                android:scaleType="centerInside"
                 android:layout_width="45dp"
                 android:layout_height="35dp"
                 android:layout_marginRight="5dp"
                 android:layout_marginBottom="5dp"
+                android:scaleType="centerInside"
                 android:src="@mipmap/ic_cheat_add" />
 
             <Button
@@ -88,6 +90,15 @@
                 android:textSize="13sp"
                 android:visibility="visible" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/disableInputTipTextView"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@color/gray5"
+            android:gravity="center"
+            android:text="全员禁言中"
+            android:visibility="gone" />
 
         <View style="@style/Line" />
 
@@ -113,7 +124,7 @@
             android:visibility="gone">
 
             <!--其他功能-->
-            <androidx.viewpager.widget.ViewPager
+            <cn.wildfire.chat.kit.widget.ViewPagerFixed
                 android:id="@+id/conversationExtViewPager"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />

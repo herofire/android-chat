@@ -4,15 +4,15 @@
 
 | 仓库                                                         | 说明                                                    | 备注 |
 | ------------------------------------------------------------ | ------------------------------------------------------- | ---- |
-| [android-chat](https://github.com/wildfirechat/android-chat) | 野火IM Android App                       |可以很方便地进行二次开发，或集成到现有应用当中      |
-| [ios-chat](https://github.com/wildfirechat/ios-chat)         | 野火IM iOS App                                      |可以很方便地进行二次开发，或集成到现有应用当中      |
+| [android-chat](https://github.com/wildfirechat/android-chat) | 野火IM Android SDK源码和App源码                       |可以很方便地进行二次开发，或集成到现有应用当中      |
+| [ios-chat](https://github.com/wildfirechat/ios-chat)         | 野火IM iOS SDK源码和App源码                            |可以很方便地进行二次开发，或集成到现有应用当中      |
 | [pc-chat](https://github.com/wildfirechat/pc-chat)           | 基于[Electron](https://electronjs.org/)开发的PC平台应用 |      |
 | [proto](https://github.com/wildfirechat/proto)               | 野火IM的协议栈实现                                      |      |
 | [server](https://github.com/wildfirechat/server)             | IM server                                               |      |
 | [app server](https://github.com/wildfirechat/app_server)     | 应用服务端                                          |      |
 | [robot_server](https://github.com/wildfirechat/robot_server) | 机器人服务端                                        |      |
 | [push_server](https://github.com/wildfirechat/push_server)   | 推送服务器                                              |      |
-| [docs](https://github.com/wildfirechat/docs)                 | 野火IM相关文档，包含设计、概念、开发、使用说明          |      |
+| [docs](https://github.com/wildfirechat/docs)                 | 野火IM相关文档，包含设计、概念、开发、使用说明          |      | |
 
 
 ## 说明
@@ -22,6 +22,9 @@
 
 开发一套IM系统真的很艰辛，请路过的朋友们给点个star，支持我们坚持下去🙏🙏🙏🙏🙏
 
+## 开发调试说明
+
+我们采用最新稳定版Android Studio及对应的gradle进行开发，对于旧版本的IDE，我们没有测试，编译之类问题，需自行解决。
 
 ## 二次开发说明
 
@@ -29,12 +32,26 @@
 
 另外，如果可以请告知我们，我们会在案例参考把项目加上。
 
-
 ### 联系我们
-问题讨论请加群：822762829
 
-<img src="http://static.wildfirechat.cn/qr_qqgroup.jpeg" width = 50% height = 50% />
+> 商务合作请优先采用邮箱和我们联系。技术问题请到[野火IM论坛](http://bbs.wildfirechat.cn/)发帖交流。
 
+1. heavyrain.lee  邮箱: heavyrain.lee@wildfirechat.cn  微信：wildfirechat
+2. imndx  邮箱: imndx@wildfirechat.cn  微信：wfchat
+
+### 问题交流
+
+1. 微信交流群（请先加我们好友，我们再邀请您进群）
+
+  ![微信二维码](http://static.wildfirechat.cn/wx_qr_wildfirechat.jpeg)   ![微信二维码](http://static.wildfirechat.cn/wx_qr_wfc.jpeg)
+  
+2. 如果大家发现bug，请在GitHub提issue
+3. 其他问题，请到[野火IM论坛](http://bbs.wildfirechat.cn/)进行交流学习
+4. 微信公众号
+
+<img src="http://static.wildfirechat.cn/wx_wfc_qrcode.jpg" width = 50% height = 50% />
+
+> 强烈建议关注我们的公众号。我们有新版本发布或者有重大更新会通过公众号通知大家，另外我们也会不定期的发布一些关于野火IM的技术介绍。
 
 ## 体验Demo
 我们提供了体验demo，请使用微信扫码下载安装体验
@@ -72,8 +89,8 @@
 工程中已经包括了编译好的协议栈，你也可以自己编译[协议栈](https://github.com/wildfirechat/proto)，编译方法请参考协议栈工程。
 
 ## 集成
-1. client部分，支持快速集成，具体参考[jitpack-wildfire.chat](https://jitpack.io/#wildfirechat/android-chat/)
-2. UI(chat)部分，目前不支持快速集成，需要你自行下载，并将代码移动到你自己的项目，且必须是application module，不能作为library module引入的原因是注解中使用了R.xx.yyyy，
+1. client部分，自行下载代码，并将client module引入你们自己的项目。
+2. UI(chat)部分，需要你自行下载，并将代码移动到你自己的项目，且必须是application module，不能作为library module引入的原因是注解中使用了R.xx.yyyy，
 而library module中，R.xx.yyy并不是一个常量。后续会采用butterKnife的方式，引入R2.xx.yyyy。
 
 ## 贡献
@@ -83,8 +100,10 @@
 1. [LQRWeChat](https://github.com/GitLqr/LQRWeChat) 本项目中图片选择器、表情基于此开发
 2. [butterKnife](https://github.com/JakeWharton/butterknife)
 3. OKHttp等一些其他优秀的开源项目
+4. 本工程使用的Icon全部来源于[icons8](https://icons8.com)，对他们表示感谢。
+5. Gif动态图来源于网络，对网友的制作表示感谢。
 
-***对以上项目的作者衷心的感谢，世界因你们的分享变得更美好。***
+如果有什么地方侵犯了您的权益，请联系我们删除🙏🙏🙏
 
 ## 案例参考
 
@@ -94,4 +113,3 @@ todo
 
 1. Under the MIT license. See the [LICENSE](https://github.com/wildfirechat/mars/blob/firechat/LICENSE) file for details.
 2. Under the 996ICU License. See the [LICENSE](https://github.com/996icu/996.ICU/blob/master/LICENSE) file for details.
-

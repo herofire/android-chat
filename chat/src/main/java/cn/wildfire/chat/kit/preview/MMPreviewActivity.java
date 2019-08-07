@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
-import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.SparseArray;
@@ -17,20 +16,22 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 import android.widget.VideoView;
 
+import androidx.annotation.NonNull;
+import androidx.viewpager.widget.PagerAdapter;
+import androidx.viewpager.widget.ViewPager;
+
 import com.github.chrisbanes.photoview.PhotoView;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.List;
 
-import androidx.annotation.NonNull;
-import androidx.viewpager.widget.PagerAdapter;
-import androidx.viewpager.widget.ViewPager;
 import cn.wildfire.chat.app.Config;
 import cn.wildfire.chat.kit.GlideApp;
 import cn.wildfire.chat.kit.conversation.message.model.UiMessage;
 import cn.wildfire.chat.kit.third.utils.UIUtils;
 import cn.wildfire.chat.kit.utils.DownloadManager;
+import cn.wildfire.chat.kit.widget.ViewPagerFixed;
 import cn.wildfirechat.chat.R;
 import cn.wildfirechat.message.ImageMessageContent;
 import cn.wildfirechat.message.VideoMessageContent;
@@ -152,7 +153,7 @@ public class MMPreviewActivity extends Activity {
             public void onClick(View v) {
                 btn.setVisibility(View.GONE);
                 if (TextUtils.isEmpty(content.localPath)) {
-                    File videoFile = new File(Environment.getExternalStorageDirectory(), "video/" + message.message.messageUid);
+                    File videoFile = new File(Config.VIDEO_SAVE_DIR, message.message.messageUid + ".mp4");
                     if (!videoFile.exists()) {
                         view.setTag(message.message.messageUid + "");
                         ProgressBar loadingProgressBar = view.findViewById(R.id.loading);
@@ -230,7 +231,6 @@ public class MMPreviewActivity extends Activity {
         PhotoView photoView = view.findViewById(R.id.photoView);
         GlideApp.with(MMPreviewActivity.this).load(path)
                 .placeholder(new BitmapDrawable(getResources(), content.getThumbnail()))
-                .centerCrop()
                 .into(photoView);
     }
 
@@ -239,7 +239,7 @@ public class MMPreviewActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mm_preview);
         views = new SparseArray<>(3);
-        final ViewPager viewPager = findViewById(R.id.viewPager);
+        final ViewPagerFixed viewPager = findViewById(R.id.viewPager);
         viewPager.setAdapter(pagerAdapter);
         viewPager.setOffscreenPageLimit(1);
         viewPager.addOnPageChangeListener(pageChangeListener);

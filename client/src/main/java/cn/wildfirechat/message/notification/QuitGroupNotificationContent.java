@@ -5,9 +5,11 @@ import android.os.Parcel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import cn.wildfirechat.message.Message;
 import cn.wildfirechat.message.core.ContentTag;
 import cn.wildfirechat.message.core.MessagePayload;
 import cn.wildfirechat.message.core.PersistFlag;
+import cn.wildfirechat.remote.ChatManager;
 
 import static cn.wildfirechat.message.core.MessageContentType.ContentType_QUIT_GROUP;
 
@@ -16,19 +18,19 @@ import static cn.wildfirechat.message.core.MessageContentType.ContentType_QUIT_G
  */
 
 @ContentTag(type = ContentType_QUIT_GROUP, flag = PersistFlag.Persist)
-public class QuitGroupNotificationContent extends NotificationMessageContent {
+public class QuitGroupNotificationContent extends GroupNotificationMessageContent {
     public String operator;
 
     public QuitGroupNotificationContent() {
     }
 
     @Override
-    public String formatNotification() {
+    public String formatNotification(Message message) {
         StringBuilder sb = new StringBuilder();
         if (fromSelf) {
             sb.append("您退出了群组 ");
         } else {
-            sb.append(operator);
+            sb.append(ChatManager.Instance().getGroupMemberDisplayName(groupId, operator));
             sb.append("退出了群组 ");
         }
 
@@ -41,8 +43,9 @@ public class QuitGroupNotificationContent extends NotificationMessageContent {
 
         try {
             JSONObject objWrite = new JSONObject();
-            objWrite.put("m", operator);
-            payload.content = objWrite.toString();
+            objWrite.put("g", groupId);
+            objWrite.put("o", operator);
+            payload.binaryContent = objWrite.toString().getBytes();
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -54,19 +57,14 @@ public class QuitGroupNotificationContent extends NotificationMessageContent {
     public void decode(MessagePayload payload) {
         try {
             if (payload.content != null) {
-                JSONObject jsonObject = new JSONObject(payload.content);
-                operator = jsonObject.optString("m");
+                JSONObject jsonObject = new JSONObject(new String(payload.binaryContent));
+                groupId = jsonObject.optString("g");
+                operator = jsonObject.optString("o");
             }
         } catch (JSONException e) {
             e.printStackTrace();
         }
     }
-
-    @Override
-    public String digest() {
-        return formatNotification();
-    }
-
 
     @Override
     public int describeContents() {
@@ -76,12 +74,18 @@ public class QuitGroupNotificationContent extends NotificationMessageContent {
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(this.operator);
+        dest.writeString(this.groupId);
         dest.writeByte(this.fromSelf ? (byte) 1 : (byte) 0);
+        dest.writeInt(this.mentionedType);
+        dest.writeStringList(this.mentionedTargets);
     }
 
     protected QuitGroupNotificationContent(Parcel in) {
         this.operator = in.readString();
+        this.groupId = in.readString();
         this.fromSelf = in.readByte() != 0;
+        this.mentionedType = in.readInt();
+        this.mentionedTargets = in.createStringArrayList();
     }
 
     public static final Creator<QuitGroupNotificationContent> CREATOR = new Creator<QuitGroupNotificationContent>() {

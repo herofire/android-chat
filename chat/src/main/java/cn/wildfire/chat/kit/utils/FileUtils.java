@@ -15,6 +15,10 @@ import android.provider.OpenableColumns;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.content.FileProvider;
+
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileFilter;
@@ -26,15 +30,13 @@ import java.io.OutputStream;
 import java.text.DecimalFormat;
 import java.util.Comparator;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.core.content.FileProvider;
+import cn.wildfirechat.chat.BuildConfig;
 import okhttp3.ResponseBody;
 
 public class FileUtils {
     public static final String DOCUMENTS_DIR = "documents";
     // configured android:authorities in AndroidManifest (https://developer.android.com/reference/android/support/v4/content/FileProvider)
-    public static final String AUTHORITY = "cn.wildfirechat.chat.provider";
+    public static final String AUTHORITY = BuildConfig.APPLICATION_ID + ".provider";
     public static final String HIDDEN_PREFIX = ".";
     /**
      * TAG for log messages.
@@ -467,7 +469,7 @@ public class FileUtils {
         } else {
             uri = Uri.fromFile(file);
         }
-        String url = file.toString();
+        String url = file.toString().toLowerCase();
         if (url.contains(".doc") || url.contains(".docx")) {
             // Word document
             intent.setDataAndType(uri, "application/msword");
@@ -502,6 +504,8 @@ public class FileUtils {
                 url.contains(".mpe") || url.contains(".mp4") || url.contains(".avi")) {
             // Video files
             intent.setDataAndType(uri, "video/*");
+        } else if (url.contains(".apk")) {
+            intent.setDataAndType(uri, "application/vnd.android.package-archive");
         } else {
             intent.setDataAndType(uri, "*/*");
         }

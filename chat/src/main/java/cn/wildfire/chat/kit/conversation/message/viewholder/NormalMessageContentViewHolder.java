@@ -9,21 +9,26 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.Nullable;
+import androidx.fragment.app.FragmentActivity;
+import androidx.lifecycle.ViewModelProviders;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.bumptech.glide.load.resource.bitmap.CenterCrop;
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
 
-import androidx.annotation.Nullable;
-import androidx.fragment.app.FragmentActivity;
-import androidx.recyclerview.widget.RecyclerView;
 import butterknife.Bind;
 import butterknife.OnClick;
 import cn.wildfire.chat.kit.ChatManagerHolder;
 import cn.wildfire.chat.kit.GlideApp;
+import cn.wildfire.chat.kit.WfcUIKit;
 import cn.wildfire.chat.kit.annotation.MessageContextMenuItem;
 import cn.wildfire.chat.kit.conversation.ConversationActivity;
 import cn.wildfire.chat.kit.conversation.forward.ForwardActivity;
 import cn.wildfire.chat.kit.conversation.message.model.UiMessage;
+import cn.wildfire.chat.kit.group.GroupViewModel;
+import cn.wildfire.chat.kit.user.UserViewModel;
 import cn.wildfirechat.chat.R;
 import cn.wildfirechat.message.Message;
 import cn.wildfirechat.message.MessageContent;
@@ -31,8 +36,11 @@ import cn.wildfirechat.message.core.MessageDirection;
 import cn.wildfirechat.message.core.MessageStatus;
 import cn.wildfirechat.message.notification.NotificationMessageContent;
 import cn.wildfirechat.model.Conversation;
+import cn.wildfirechat.model.GroupInfo;
+import cn.wildfirechat.model.GroupMember;
 import cn.wildfirechat.model.UserInfo;
 import cn.wildfirechat.remote.ChatManager;
+import cn.wildfirechat.remote.UserSettingScope;
 
 /**
  * 普通消息
@@ -147,14 +155,31 @@ public abstract class NormalMessageContentViewHolder extends MessageContentViewH
     public boolean contextMenuItemFilter(UiMessage uiMessage, String tag) {
         Message message = uiMessage.message;
         if (MessageContextMenuItemTags.TAG_RECALL.equals(tag)) {
-            long delta = ChatManager.Instance().getServerDeltaTime();
-            long now = System.currentTimeMillis();
-            if (message.direction == MessageDirection.Send
-                    && TextUtils.equals(message.sender, ChatManager.Instance().getUserId())
-                    && now - (message.serverTime - delta) < 60 * 1000) {
-                return false;
+
+            String userId = ChatManager.Instance().getUserId();
+            if (message.conversation.type == Conversation.ConversationType.Group) {
+                GroupViewModel groupViewModel = ViewModelProviders.of(context).get(GroupViewModel.class);
+                GroupInfo groupInfo = groupViewModel.getGroupInfo(message.conversation.target, false);
+                if (groupInfo != null && userId.equals(groupInfo.owner)) {
+                    return false;
+                }
+                GroupMember groupMember = groupViewModel.getGroupMember(message.conversation.target, ChatManager.Instance().getUserId());
+                if (groupMember != null && (groupMember.type == GroupMember.GroupMemberType.Manager
+                        || groupMember.type == GroupMember.GroupMemberType.Owner)) {
+                    return false;
+                } else {
+                    return true;
+                }
             } else {
-                return true;
+                long delta = ChatManager.Instance().getServerDeltaTime();
+                long now = System.currentTimeMillis();
+                if (message.direction == MessageDirection.Send
+                        && TextUtils.equals(message.sender, ChatManager.Instance().getUserId())
+                        && now - (message.serverTime - delta) < 60 * 1000) {
+                    return false;
+                } else {
+                    return true;
+                }
             }
         }
 
@@ -189,10 +214,28 @@ public abstract class NormalMessageContentViewHolder extends MessageContentViewH
     private void setSenderName(Message item) {
         if (item.conversation.type == Conversation.ConversationType.Single) {
             nameTextView.setVisibility(View.GONE);
+        } else if (item.conversation.type == Conversation.ConversationType.Group) {
+            showGroupMemberAlias(message.message.conversation, message.message.sender);
         } else {
-//            itemView.findViewById(R.id.tvName).setVisibility(View.VISIBLE);
-            // TODO
+            // todo
         }
+    }
+
+    private void showGroupMemberAlias(Conversation conversation, String sender) {
+        UserViewModel userViewModel = WfcUIKit.getAppScopeViewModel(UserViewModel.class);
+        if (!"1".equals(userViewModel.getUserSetting(UserSettingScope.GroupHideNickname, conversation.target))) {
+            nameTextView.setVisibility(View.GONE);
+            return;
+        }
+        nameTextView.setVisibility(View.VISIBLE);
+        // TODO optimize 缓存userInfo吧
+//        if (Conversation.equals(nameTextView.getTag(), sender)) {
+//            return;
+//        }
+        GroupViewModel groupViewModel = ViewModelProviders.of(context).get(GroupViewModel.class);
+
+        nameTextView.setText(groupViewModel.getGroupMemberDisplayName(conversation.target, sender));
+        nameTextView.setTag(sender);
     }
 
     protected void setSendStatus(Message item) {

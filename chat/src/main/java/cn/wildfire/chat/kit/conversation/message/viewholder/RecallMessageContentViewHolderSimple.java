@@ -5,6 +5,7 @@ import android.widget.TextView;
 
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
+
 import butterknife.Bind;
 import cn.wildfire.chat.kit.annotation.LayoutRes;
 import cn.wildfire.chat.kit.annotation.MessageContentType;
@@ -24,7 +25,6 @@ public class RecallMessageContentViewHolderSimple extends SimpleNotificationMess
 
     @Override
     protected void onBind(UiMessage message) {
-        RecallMessageContent content = (RecallMessageContent) message.message.content;
-        notificationTextView.setText(content.digest());
+        notificationTextView.setText(message.message.digest());
     }
 }

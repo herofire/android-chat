@@ -23,11 +23,13 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import org.webrtc.StatsReport;
-
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+
+import org.webrtc.StatsReport;
+
 import cn.wildfirechat.avenginekit.AVEngineKit;
+import cn.wildfirechat.chat.BuildConfig;
 import cn.wildfirechat.chat.R;
 
 import static org.webrtc.RendererCommon.ScalingType.SCALE_ASPECT_BALANCED;
@@ -58,7 +60,7 @@ public class FloatingVoipService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (isStarted) {
-            return START_STICKY;
+            return START_NOT_STICKY;
         }
 
         isStarted = true;
@@ -78,7 +80,7 @@ public class FloatingVoipService extends Service {
 
         String channelId = "";
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            channelId = "cn.wildfirechat.chat.voip";
+            channelId = BuildConfig.APPLICATION_ID + ".voip";
             String channelName = "voip";
             NotificationChannel chan = new NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH);
             chan.setLightColor(Color.BLUE);
@@ -100,7 +102,7 @@ public class FloatingVoipService extends Service {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return START_STICKY;
+        return START_NOT_STICKY;
     }
 
     @Override

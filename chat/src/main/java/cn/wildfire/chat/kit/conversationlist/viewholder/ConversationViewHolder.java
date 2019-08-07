@@ -7,13 +7,14 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProviders;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.lqr.emoji.MoonUtils;
 
 import java.util.Arrays;
 
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProviders;
-import androidx.recyclerview.widget.RecyclerView;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import cn.wildfire.chat.kit.annotation.ConversationContextMenuItem;
@@ -21,14 +22,13 @@ import cn.wildfire.chat.kit.conversation.ConversationActivity;
 import cn.wildfire.chat.kit.conversation.Draft;
 import cn.wildfire.chat.kit.conversationlist.ConversationListViewModel;
 import cn.wildfire.chat.kit.conversationlist.ConversationListViewModelFactory;
+import cn.wildfire.chat.kit.group.GroupViewModel;
 import cn.wildfire.chat.kit.third.utils.TimeUtils;
 import cn.wildfirechat.chat.R;
 import cn.wildfirechat.message.Message;
 import cn.wildfirechat.message.core.MessageDirection;
 import cn.wildfirechat.model.Conversation;
 import cn.wildfirechat.model.ConversationInfo;
-import cn.wildfirechat.model.UserInfo;
-import cn.wildfirechat.remote.ChatManager;
 
 @SuppressWarnings("unused")
 public abstract class ConversationViewHolder extends RecyclerView.ViewHolder {
@@ -64,7 +64,7 @@ public abstract class ConversationViewHolder extends RecyclerView.ViewHolder {
         this.adapter = adapter;
         ButterKnife.bind(this, itemView);
         conversationListViewModel = ViewModelProviders
-                .of(fragment, new ConversationListViewModelFactory(Arrays.asList(Conversation.ConversationType.Single, Conversation.ConversationType.Group), Arrays.asList(0)))
+                .of(fragment.getActivity(), new ConversationListViewModelFactory(Arrays.asList(Conversation.ConversationType.Single, Conversation.ConversationType.Group), Arrays.asList(0)))
                 .get(ConversationListViewModel.class);
     }
 
@@ -104,8 +104,9 @@ public abstract class ConversationViewHolder extends RecyclerView.ViewHolder {
         } else {
             if (conversationInfo.unreadCount.unreadMentionAll > 0 || conversationInfo.unreadCount.unreadMention > 0) {
                 promptTextView.setText("[有人@我]");
+                promptTextView.setVisibility(View.VISIBLE);
             } else {
-                setViewVisibility(R.id.promptTextView, View.GONE);
+                promptTextView.setVisibility(View.GONE);
             }
             setViewVisibility(R.id.contentTextView, View.VISIBLE);
             if (conversationInfo.lastMessage != null && conversationInfo.lastMessage.content != null) {
@@ -114,10 +115,11 @@ public abstract class ConversationViewHolder extends RecyclerView.ViewHolder {
                 // the message maybe invalid
                 try {
                     if (conversationInfo.conversation.type == Conversation.ConversationType.Group && lastMessage.direction == MessageDirection.Receive) {
-                        UserInfo userInfo = ChatManager.Instance().getUserInfo(conversationInfo.lastMessage.sender, false);
-                        content = userInfo.displayName + ":" + lastMessage.content.digest();
+                        GroupViewModel groupViewModel = ViewModelProviders.of(fragment).get(GroupViewModel.class);
+                        String senderDisplayName = groupViewModel.getGroupMemberDisplayName(conversationInfo.conversation.target, conversationInfo.lastMessage.sender);
+                        content = senderDisplayName + ":" + lastMessage.digest();
                     } else {
-                        content = lastMessage.content.digest();
+                        content = lastMessage.digest();
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -159,6 +161,15 @@ public abstract class ConversationViewHolder extends RecyclerView.ViewHolder {
             priority = 0)
     public void removeConversation(View itemView, ConversationInfo conversationInfo) {
         conversationListViewModel.removeConversation(conversationInfo);
+    }
+
+    @ConversationContextMenuItem(tag = ConversationContextMenuItemTags.TAG_REMOVE,
+            title = "清空会话",
+            confirm = true,
+            confirmPrompt = "确认清空会话？",
+            priority = 0)
+    public void clearMessages(View itemView, ConversationInfo conversationInfo) {
+        conversationListViewModel.clearMessages(conversationInfo.conversation);
     }
 
     @ConversationContextMenuItem(tag = ConversationContextMenuItemTags.TAG_TOP, title = "置顶", priority = 1)

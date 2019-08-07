@@ -7,6 +7,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProviders;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.kyleduo.switchbutton.SwitchButton;
 
 import java.util.ArrayList;
@@ -14,20 +21,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProviders;
-import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
-import cn.wildfire.chat.kit.contact.ContactViewModel;
+import cn.wildfire.chat.kit.WfcUIKit;
 import cn.wildfire.chat.kit.contact.pick.PickConversationTargetActivity;
 import cn.wildfire.chat.kit.conversationlist.ConversationListViewModel;
 import cn.wildfire.chat.kit.conversationlist.ConversationListViewModelFactory;
-import cn.wildfire.chat.kit.group.AddGroupMemberActivity;
+import cn.wildfire.chat.kit.search.SearchMessageActivity;
 import cn.wildfire.chat.kit.user.UserInfoActivity;
 import cn.wildfire.chat.kit.user.UserViewModel;
 import cn.wildfirechat.chat.R;
@@ -50,7 +51,6 @@ public class SingleConversationInfoFragment extends Fragment implements Conversa
     private ConversationViewModel conversationViewModel;
     private UserViewModel userViewModel;
 
-    private static final int REQUEST_ADD_MEMBER = 100;
 
     public static SingleConversationInfoFragment newInstance(ConversationInfo conversationInfo) {
         SingleConversationInfoFragment fragment = new SingleConversationInfoFragment();
@@ -80,9 +80,8 @@ public class SingleConversationInfoFragment extends Fragment implements Conversa
 
     private void init() {
         conversationViewModel = ViewModelProviders.of(this, new ConversationViewModelFactory(conversationInfo.conversation)).get(ConversationViewModel.class);
-        userViewModel = ViewModelProviders.of(this).get(UserViewModel.class);
-        ContactViewModel contactViewModel = ViewModelProviders.of(this).get(ContactViewModel.class);
-        String userId = userViewModel.getUserId();
+        userViewModel = WfcUIKit.getAppScopeViewModel(UserViewModel.class);
+        String userId = conversationInfo.conversation.target;
         conversationMemberAdapter = new ConversationMemberAdapter(true, false);
         List<UserInfo> members = Collections.singletonList(userViewModel.getUserInfo(userId, false));
         conversationMemberAdapter.setMembers(members);
@@ -101,6 +100,12 @@ public class SingleConversationInfoFragment extends Fragment implements Conversa
         conversationViewModel.clearConversationMessage(conversationInfo.conversation);
     }
 
+    @OnClick(R.id.searchMessageOptionItemView)
+    void searchGroupMessage() {
+        Intent intent = new Intent(getActivity(), SearchMessageActivity.class);
+        intent.putExtra("conversation", conversationInfo.conversation);
+        startActivity(intent);
+    }
 
     @Override
     public void onUserMemberClick(UserInfo userInfo) {
@@ -121,32 +126,6 @@ public class SingleConversationInfoFragment extends Fragment implements Conversa
     @Override
     public void onRemoveMemberClick() {
         // do nothing
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        switch (requestCode) {
-            case REQUEST_ADD_MEMBER:
-                if (resultCode == AddGroupMemberActivity.RESULT_ADD_SUCCESS) {
-                    List<String> memberIds = data.getStringArrayListExtra("memberIds");
-                    addGroupMember(memberIds);
-                }
-                break;
-            default:
-                super.onActivityResult(requestCode, resultCode, data);
-                break;
-        }
-    }
-
-    private void addGroupMember(List<String> memberIds) {
-        if (memberIds == null || memberIds.isEmpty()) {
-            return;
-        }
-        List<UserInfo> userInfos = userViewModel.getUserInfos(memberIds);
-        if (userInfos == null) {
-            return;
-        }
-        conversationMemberAdapter.addMembers(userInfos);
     }
 
     private void stickTop(boolean top) {

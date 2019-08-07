@@ -7,7 +7,7 @@
     android:background="@color/gray5"
     android:orientation="vertical">
 
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scrollbars="none">
@@ -121,6 +121,18 @@
                     app:left_text_size="16sp"
                     tools:visibility="visible" />
             </LinearLayout>
+
+
+            <com.lqr.optionitemview.OptionItemView
+                android:id="@+id/searchMessageOptionItemView"
+                style="@style/OptionItem"
+                android:layout_marginTop="@dimen/option_item_margin_top"
+                android:background="@drawable/selector_option_item"
+                app:left_text="查找聊天记录"
+                app:left_text_color="@color/black0"
+                app:left_text_margin_left="@dimen/option_item_margin_left"
+                app:left_text_size="16sp"
+                tools:visibility="visible" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -276,11 +288,11 @@
                         android:textSize="16sp" />
 
                     <com.kyleduo.switchbutton.SwitchButton
-                        android:id="@+id/showGroupNickNameSwitchButton"
+                        android:id="@+id/showGroupMemberAliasSwitchButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginRight="@dimen/option_item_margin_right"
-                        android:clickable="false"
+                        android:clickable="true"
                         app:kswBackDrawable="@drawable/ios_back_drawable"
                         app:kswBackMeasureRatio="1.8"
                         app:kswThumbDrawable="@drawable/ios_thumb_selector"
@@ -320,5 +332,5 @@
                 tools:visibility="visible" />
 
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 </LinearLayout>

@@ -2,10 +2,11 @@ package cn.wildfirechat.message.notification;
 
 import android.os.Parcel;
 
+import cn.wildfirechat.message.Message;
 import cn.wildfirechat.message.core.ContentTag;
 import cn.wildfirechat.message.core.MessagePayload;
 import cn.wildfirechat.message.core.PersistFlag;
-import cn.wildfirechat.model.UserInfo;
+import cn.wildfirechat.model.Conversation;
 import cn.wildfirechat.remote.ChatManager;
 
 import static cn.wildfirechat.message.core.MessageContentType.ContentType_Recall;
@@ -42,11 +43,6 @@ public class RecallMessageContent extends NotificationMessageContent {
         messageUid = Long.parseLong(new String(payload.binaryContent));
     }
 
-    @Override
-    public String digest() {
-        return formatNotification();
-    }
-
     public String getOperatorId() {
         return operatorId;
     }
@@ -64,6 +60,24 @@ public class RecallMessageContent extends NotificationMessageContent {
     }
 
     @Override
+    public String formatNotification(Message message) {
+        String notification = "%s撤回了一条消息";
+        if (fromSelf) {
+            notification = String.format(notification, "您");
+        } else {
+            String displayName;
+            if (message.conversation.type == Conversation.ConversationType.Group) {
+                displayName = ChatManager.Instance().getGroupMemberDisplayName(message.conversation.target, operatorId);
+            } else {
+                displayName = ChatManager.Instance().getUserDisplayName(operatorId);
+            }
+            notification = String.format(notification, displayName);
+        }
+        return notification;
+    }
+
+
+    @Override
     public int describeContents() {
         return 0;
     }
@@ -72,11 +86,13 @@ public class RecallMessageContent extends NotificationMessageContent {
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(this.operatorId);
         dest.writeLong(this.messageUid);
+        dest.writeByte(this.fromSelf ? (byte) 1 : (byte) 0);
     }
 
     protected RecallMessageContent(Parcel in) {
         this.operatorId = in.readString();
         this.messageUid = in.readLong();
+        this.fromSelf = in.readByte() != 0;
     }
 
     public static final Creator<RecallMessageContent> CREATOR = new Creator<RecallMessageContent>() {
@@ -90,16 +106,4 @@ public class RecallMessageContent extends NotificationMessageContent {
             return new RecallMessageContent[size];
         }
     };
-
-    @Override
-    public String formatNotification() {
-        UserInfo userInfo = ChatManager.Instance().getUserInfo(operatorId, false);
-        String notification = "%s撤回了一条消息";
-        if (fromSelf) {
-            notification = String.format(notification, "您");
-        } else {
-            notification = String.format(notification, userInfo.displayName);
-        }
-        return notification;
-    }
 }

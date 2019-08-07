@@ -71,7 +71,7 @@
         <!--地图-->
         <meta-data
             android:name="TencentMapSDK"
-            android:value="TYQBZ-MRBKU-K7FVL-4JBW5-DOG5O-SZB4A" />
+            android:value="TOEBZ-67IR4-ZDHUV-DSDXX-TJZU7-UYFE7" />
 
         <activity
             android:name="cn.wildfire.chat.app.main.SplashActivity"
@@ -126,7 +126,7 @@
             android:theme="@style/AppTheme.FullScreen" />
         <activity android:name="cn.wildfire.chat.kit.voip.SingleVoipCallActivity">
             <intent-filter>
-                <action android:name="cn.wildfirechat.kit.chat.voip.single" />
+                <action android:name="${applicationId}.kit.voip.single" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
@@ -189,9 +189,10 @@
         <activity android:name="cn.wildfire.chat.kit.channel.ChannelInfoActivity" />
         <activity
             android:name="cn.wildfire.chat.app.main.MainActivity"
+            android:launchMode="singleTask"
             android:label="火信">
             <intent-filter>
-                <action android:name="cn.wildfirechat.chat.main" />
+                <action android:name="${applicationId}.main" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
@@ -207,6 +208,14 @@
         <activity
             android:name="cn.wildfire.chat.kit.group.GroupInfoActivity"
             android:label="群信息" />
+        <activity
+            android:name="cn.wildfire.chat.kit.qrcode.ScanQRCodeActivity"
+            android:label="扫一扫" />
+        <activity android:name="cn.wildfire.chat.kit.group.manage.GroupManageActivity" />
+        <activity android:name="cn.wildfire.chat.kit.group.manage.GroupManagerListActivity" />
+        <activity android:name="cn.wildfire.chat.kit.group.manage.AddGroupManagerActivity" />
+        <activity android:name="cn.wildfire.chat.kit.group.manage.GroupMuteActivity" />
+        <activity android:name="cn.wildfire.chat.kit.group.manage.GroupMemberPermissionActivity" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

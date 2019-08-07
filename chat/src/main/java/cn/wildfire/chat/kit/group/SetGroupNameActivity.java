@@ -6,18 +6,17 @@ import android.view.MenuItem;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import com.afollestad.materialdialogs.MaterialDialog;
-
 import androidx.annotation.Nullable;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
+
+import com.afollestad.materialdialogs.MaterialDialog;
+
 import butterknife.Bind;
 import butterknife.OnTextChanged;
 import cn.wildfire.chat.kit.WfcBaseActivity;
 import cn.wildfire.chat.kit.common.OperateResult;
-import cn.wildfire.chat.kit.user.UserViewModel;
 import cn.wildfirechat.chat.R;
-import cn.wildfirechat.message.notification.ChangeGroupNameNotificationContent;
 import cn.wildfirechat.model.GroupInfo;
 import cn.wildfirechat.model.ModifyGroupInfoType;
 
@@ -89,11 +88,6 @@ public class SetGroupNameActivity extends WfcBaseActivity {
                 .build();
         dialog.show();
 
-        UserViewModel userViewModel = ViewModelProviders.of(this).get(UserViewModel.class);
-        ChangeGroupNameNotificationContent notify = new ChangeGroupNameNotificationContent();
-        notify.fromSelf = true;
-        notify.operateUser = userViewModel.getUserId();
-        notify.name = groupInfo.name;
         groupViewModel.modifyGroupInfo(groupInfo.target, ModifyGroupInfoType.Modify_Group_Name, groupInfo.name, null).observe(this, new Observer<OperateResult<Boolean>>() {
             @Override
             public void onChanged(@Nullable OperateResult operateResult) {

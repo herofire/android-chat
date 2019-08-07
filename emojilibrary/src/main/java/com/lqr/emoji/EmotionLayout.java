@@ -13,10 +13,10 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 
-import java.util.List;
-
 import androidx.annotation.Nullable;
 import androidx.viewpager.widget.ViewPager;
+
+import java.util.List;
 
 /**
  * CSDN_LQR
@@ -37,7 +37,7 @@ public class EmotionLayout extends LinearLayout implements View.OnClickListener 
 
     private int mTabPosi = 0;
     private Context mContext;
-    private ViewPager mVpEmotioin;
+    private ViewPagerFixed mVpEmotioin;
     private LinearLayout mLlPageNumber;
     private LinearLayout mLlTabContainer;
     private RelativeLayout mRlEmotionAdd;
@@ -49,6 +49,7 @@ public class EmotionLayout extends LinearLayout implements View.OnClickListener 
     private IEmotionExtClickListener mEmotionExtClickListener;
     private boolean mEmotionAddVisiable = false;
     private boolean mEmotionSettingVisiable = false;
+    private boolean stickerVisible = true;
 
     public EmotionLayout(Context context) {
         this(context, null);
@@ -105,6 +106,10 @@ public class EmotionLayout extends LinearLayout implements View.OnClickListener 
         }
     }
 
+    public void setStickerVisible(boolean visible) {
+        stickerVisible = visible;
+    }
+
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
@@ -158,7 +163,7 @@ public class EmotionLayout extends LinearLayout implements View.OnClickListener 
         inflater.inflate(R.layout.emotion_layout, this);
 //        View.inflate(mContext, R.layout.emotion_layout, this);
 
-        mVpEmotioin = (ViewPager) findViewById(R.id.vpEmotioin);
+        mVpEmotioin = (ViewPagerFixed) findViewById(R.id.vpEmotioin);
         mLlPageNumber = (LinearLayout) findViewById(R.id.llPageNumber);
         mLlTabContainer = (LinearLayout) findViewById(R.id.llTabContainer);
         mRlEmotionAdd = (RelativeLayout) findViewById(R.id.rlEmotionAdd);
@@ -175,25 +180,28 @@ public class EmotionLayout extends LinearLayout implements View.OnClickListener 
         mTabViewArray.put(0, emojiTab);
 
         //添加所有的贴图tab
-        List<StickerCategory> stickerCategories = StickerManager.getInstance().getStickerCategories();
-        for (int i = 0; i < stickerCategories.size(); i++) {
-            StickerCategory category = stickerCategories.get(i);
-            EmotionTab tab = new EmotionTab(mContext, category.getCoverImgPath());
-            mLlTabContainer.addView(tab);
-            mTabViewArray.put(i + 1, tab);
+        if (stickerVisible) {
+            List<StickerCategory> stickerCategories = StickerManager.getInstance().getStickerCategories();
+            for (int i = 0; i < stickerCategories.size(); i++) {
+                StickerCategory category = stickerCategories.get(i);
+                EmotionTab tab = new EmotionTab(mContext, category.getCoverImgPath());
+                mLlTabContainer.addView(tab);
+                mTabViewArray.put(i + 1, tab);
+            }
         }
 
         //最后添加一个表情设置Tab
-        mSettingTab = new EmotionTab(mContext, R.drawable.ic_emotion_setting);
-        StateListDrawable drawable = new StateListDrawable();
-        Drawable unSelected = mContext.getResources().getDrawable(R.color.white);
-        drawable.addState(new int[]{-android.R.attr.state_pressed}, unSelected);
-        Drawable selected = mContext.getResources().getDrawable(R.color.gray);
-        drawable.addState(new int[]{android.R.attr.state_pressed}, selected);
-        mSettingTab.setBackground(drawable);
-        mLlTabContainer.addView(mSettingTab);
-        mTabViewArray.put(mTabViewArray.size(), mSettingTab);
-        setEmotionSettingVisiable(mEmotionSettingVisiable);
+        if (mEmotionSettingVisiable) {
+            mSettingTab = new EmotionTab(mContext, R.drawable.ic_emotion_setting);
+            StateListDrawable drawable = new StateListDrawable();
+            Drawable unSelected = mContext.getResources().getDrawable(R.color.white);
+            drawable.addState(new int[]{-android.R.attr.state_pressed}, unSelected);
+            Drawable selected = mContext.getResources().getDrawable(R.color.gray);
+            drawable.addState(new int[]{android.R.attr.state_pressed}, selected);
+            mSettingTab.setBackground(drawable);
+            mLlTabContainer.addView(mSettingTab);
+            mTabViewArray.put(mTabViewArray.size(), mSettingTab);
+        }
 
         selectTab(0);
         fillVpEmotioin(0);
@@ -226,23 +234,26 @@ public class EmotionLayout extends LinearLayout implements View.OnClickListener 
             }
         });
 
-        mRlEmotionAdd.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (mEmotionExtClickListener != null) {
-                    mEmotionExtClickListener.onEmotionAddClick(v);
+        if (mRlEmotionAdd != null) {
+            mRlEmotionAdd.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (mEmotionExtClickListener != null) {
+                        mEmotionExtClickListener.onEmotionAddClick(v);
+                    }
                 }
-            }
-        });
-
-        mSettingTab.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (mEmotionExtClickListener != null) {
-                    mEmotionExtClickListener.onEmotionSettingClick(v);
+            });
+        }
+        if (mSettingTab != null) {
+            mSettingTab.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (mEmotionExtClickListener != null) {
+                        mEmotionExtClickListener.onEmotionSettingClick(v);
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     private void setCurPageCommon(int position) {
@@ -259,11 +270,15 @@ public class EmotionLayout extends LinearLayout implements View.OnClickListener 
 
     @Override
     public void onClick(View v) {
-        mTabPosi = (int) v.getTag();
+        int targetTabIndex = (int) v.getTag();
+        if (targetTabIndex == mTabPosi) {
+            return;
+        }
+        mTabPosi = targetTabIndex;
         selectTab(mTabPosi);
         int position = adapter.categoryTabIndexToPagePosition(mTabPosi);
         mLlPageNumber.removeAllViews();
-        mVpEmotioin.setCurrentItem(position);
+        mVpEmotioin.setCurrentItem(position, false);
     }
 
     private void selectTab(int tabPosi) {

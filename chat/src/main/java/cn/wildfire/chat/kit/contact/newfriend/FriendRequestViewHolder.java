@@ -7,14 +7,16 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.lifecycle.ViewModelProviders;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 
-import androidx.lifecycle.ViewModelProviders;
-import androidx.recyclerview.widget.RecyclerView;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import cn.wildfire.chat.kit.WfcUIKit;
 import cn.wildfire.chat.kit.contact.ContactViewModel;
 import cn.wildfire.chat.kit.user.UserViewModel;
 import cn.wildfirechat.chat.R;
@@ -44,7 +46,7 @@ public class FriendRequestViewHolder extends RecyclerView.ViewHolder {
         this.fragment = fragment;
         this.adapter = adapter;
         ButterKnife.bind(this, itemView);
-        userViewModel = ViewModelProviders.of(fragment).get(UserViewModel.class);
+        userViewModel = WfcUIKit.getAppScopeViewModel(UserViewModel.class);
         contactViewModel = ViewModelProviders.of(fragment).get(ContactViewModel.class);
     }
 
@@ -52,6 +54,7 @@ public class FriendRequestViewHolder extends RecyclerView.ViewHolder {
     void accept() {
         contactViewModel.acceptFriendRequest(friendRequest.target).observe(fragment, aBoolean -> {
             if (aBoolean) {
+                this.friendRequest.status = 1;
                 acceptButton.setVisibility(View.GONE);
             } else {
                 Toast.makeText(fragment.getActivity(), "操作失败", Toast.LENGTH_SHORT).show();

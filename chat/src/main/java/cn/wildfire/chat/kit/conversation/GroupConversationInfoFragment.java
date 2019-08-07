@@ -11,6 +11,13 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProviders;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.kyleduo.switchbutton.SwitchButton;
 import com.lqr.optionitemview.OptionItemView;
@@ -20,18 +27,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProviders;
-import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
-import cn.wildfire.chat.app.Config;
-import cn.wildfire.chat.kit.common.OperateResult;
+import cn.wildfire.chat.app.main.MainActivity;
+import cn.wildfire.chat.kit.ChatManagerHolder;
+import cn.wildfire.chat.kit.WfcScheme;
+import cn.wildfire.chat.kit.WfcUIKit;
 import cn.wildfire.chat.kit.contact.ContactViewModel;
 import cn.wildfire.chat.kit.conversationlist.ConversationListViewModel;
 import cn.wildfire.chat.kit.conversationlist.ConversationListViewModelFactory;
@@ -39,7 +41,9 @@ import cn.wildfire.chat.kit.group.AddGroupMemberActivity;
 import cn.wildfire.chat.kit.group.GroupViewModel;
 import cn.wildfire.chat.kit.group.RemoveGroupMemberActivity;
 import cn.wildfire.chat.kit.group.SetGroupNameActivity;
+import cn.wildfire.chat.kit.group.manage.GroupManageActivity;
 import cn.wildfire.chat.kit.qrcode.QRCodeActivity;
+import cn.wildfire.chat.kit.search.SearchMessageActivity;
 import cn.wildfire.chat.kit.user.UserInfoActivity;
 import cn.wildfire.chat.kit.user.UserViewModel;
 import cn.wildfirechat.chat.R;
@@ -48,6 +52,7 @@ import cn.wildfirechat.model.ConversationInfo;
 import cn.wildfirechat.model.GroupInfo;
 import cn.wildfirechat.model.GroupMember;
 import cn.wildfirechat.model.UserInfo;
+import cn.wildfirechat.remote.UserSettingScope;
 
 public class GroupConversationInfoFragment extends Fragment implements ConversationMemberAdapter.OnMemberClickListener, CompoundButton.OnCheckedChangeListener {
 
@@ -71,7 +76,7 @@ public class GroupConversationInfoFragment extends Fragment implements Conversat
     LinearLayout groupLinearLayout_1;
     @Bind(R.id.myGroupNickNameOptionItemView)
     OptionItemView myGroupNickNameOptionItemView;
-    @Bind(R.id.showGroupNickNameSwitchButton)
+    @Bind(R.id.showGroupMemberAliasSwitchButton)
     SwitchButton showGroupMemberNickNameSwitchButton;
 
     @Bind(R.id.quitButton)
@@ -101,10 +106,6 @@ public class GroupConversationInfoFragment extends Fragment implements Conversat
     private GroupMember groupMember;
 
 
-    private static final int REQUEST_ADD_MEMBER = 100;
-    private static final int REQUEST_REMOVE_MEMBER = 200;
-    private static final int REQUEST_CODE_SET_GROUP_NAME = 300;
-
     public static GroupConversationInfoFragment newInstance(ConversationInfo conversationInfo) {
         GroupConversationInfoFragment fragment = new GroupConversationInfoFragment();
         Bundle args = new Bundle();
@@ -133,9 +134,7 @@ public class GroupConversationInfoFragment extends Fragment implements Conversat
 
     private void init() {
         conversationViewModel = ViewModelProviders.of(this, new ConversationViewModelFactory(conversationInfo.conversation)).get(ConversationViewModel.class);
-        userViewModel = ViewModelProviders.of(this).get(UserViewModel.class);
-        ContactViewModel contactViewModel = ViewModelProviders.of(this).get(ContactViewModel.class);
-        String userId = userViewModel.getUserId();
+        userViewModel = WfcUIKit.getAppScopeViewModel(UserViewModel.class);
         groupLinearLayout_0.setVisibility(View.VISIBLE);
         groupLinearLayout_1.setVisibility(View.VISIBLE);
         markGroupLinearLayout.setVisibility(View.VISIBLE);
@@ -143,41 +142,129 @@ public class GroupConversationInfoFragment extends Fragment implements Conversat
         quitGroupButton.setVisibility(View.VISIBLE);
 
         groupViewModel = ViewModelProviders.of(this).get(GroupViewModel.class);
-        List<GroupMember> groupMembers = groupViewModel.getGroupMembers(conversationInfo.conversation.target, false);
+
+        loadAndShowGroupMembers(true);
+        if (groupMember == null || groupInfo == null) {
+            return;
+        }
+        if (groupMember.type == GroupMember.GroupMemberType.Manager || groupMember.type == GroupMember.GroupMemberType.Owner) {
+            groupManageOptionItemView.setVisibility(View.VISIBLE);
+        }
+
+        showGroupMemberNickNameSwitchButton.setChecked("1".equals(userViewModel.getUserSetting(UserSettingScope.GroupHideNickname, groupInfo.target)));
+        showGroupMemberNickNameSwitchButton.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            userViewModel.setUserSetting(UserSettingScope.GroupHideNickname, groupInfo.target, isChecked ? "1" : "0");
+        });
+
+
+        myGroupNickNameOptionItemView.setRightText(groupMember.alias);
+        groupNameOptionItemView.setRightText(groupInfo.name);
+
+        stickTopSwitchButton.setChecked(conversationInfo.isTop);
+        silentSwitchButton.setChecked(conversationInfo.isSilent);
+        stickTopSwitchButton.setOnCheckedChangeListener(this);
+        silentSwitchButton.setOnCheckedChangeListener(this);
+
+        if (groupInfo != null && ChatManagerHolder.gChatManager.getUserId().equals(groupInfo.owner)) {
+            quitGroupButton.setText(R.string.delete_and_dismiss);
+        } else {
+            quitGroupButton.setText(R.string.delete_and_exit);
+        }
+
+        observerFavGroupsUpdate();
+        observerGroupInfoUpdate();
+        observerGroupMembersUpdate();
+    }
+
+    private void observerFavGroupsUpdate() {
+        groupViewModel.getMyGroups().observe(this, listOperateResult -> {
+            if (listOperateResult.isSuccess()) {
+                for (GroupInfo info : listOperateResult.getResult()) {
+                    if (groupInfo.target.equals(info.target)) {
+                        markGroupSwitchButton.setChecked(true);
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    private void observerGroupMembersUpdate() {
+        groupViewModel.groupMembersUpdateLiveData().observe(this, groupMembers -> {
+            loadAndShowGroupMembers(false);
+        });
+    }
+
+    private void observerGroupInfoUpdate() {
+        groupViewModel.groupInfoUpdateLiveData().observe(this, groupInfos -> {
+            for (GroupInfo groupInfo : groupInfos) {
+                if (groupInfo.target.equals(this.groupInfo.target)) {
+                    groupNameOptionItemView.setRightText(groupInfo.name);
+                    loadAndShowGroupMembers(false);
+                    break;
+                }
+            }
+
+        });
+    }
+
+    private void loadAndShowGroupMembers(boolean refresh) {
+        ContactViewModel contactViewModel = ViewModelProviders.of(this).get(ContactViewModel.class);
+        String userId = userViewModel.getUserId();
+        List<GroupMember> groupMembers = groupViewModel.getGroupMembers(conversationInfo.conversation.target, refresh);
+        if (groupMembers == null || groupMembers.isEmpty()) {
+            return;
+        }
         List<String> memberIds = new ArrayList<>();
         for (GroupMember member : groupMembers) {
             if (member.memberId.equals(userId)) {
                 groupMember = member;
             }
-            memberIds.add(member.memberId);
+            if (member.type != GroupMember.GroupMemberType.Removed) {
+                memberIds.add(member.memberId);
+            }
         }
         groupInfo = groupViewModel.getGroupInfo(conversationInfo.conversation.target, false);
 
-        boolean enableRemoveMember = false;
-        if (groupMember.type != GroupMember.GroupMemberType.Normal || userId.equals(groupInfo.owner)) {
-            enableRemoveMember = true;
+        if (groupMember == null || groupInfo == null) {
+            Toast.makeText(getActivity(), "你不在群组或发生错误, 请稍后再试", Toast.LENGTH_SHORT).show();
+            getActivity().finish();
+            return;
         }
-        conversationMemberAdapter = new ConversationMemberAdapter(true, enableRemoveMember);
-        List<UserInfo> members = contactViewModel.getContacts(memberIds);
-        myGroupNickNameOptionItemView.setRightText(groupMember.alias);
-        groupNameOptionItemView.setRightText(groupInfo.name);
 
+        boolean enableRemoveMember = false;
+        boolean enableAddMember = false;
+        if (groupInfo.joinType == 2) {
+            if (groupMember.type == GroupMember.GroupMemberType.Owner || groupMember.type == GroupMember.GroupMemberType.Manager) {
+                enableAddMember = true;
+                enableRemoveMember = true;
+            }
+        } else {
+            enableAddMember = true;
+            if (groupMember.type != GroupMember.GroupMemberType.Normal || userId.equals(groupInfo.owner)) {
+                enableRemoveMember = true;
+            }
+        }
+        conversationMemberAdapter = new ConversationMemberAdapter(enableAddMember, enableRemoveMember);
+        List<UserInfo> members = userViewModel.getUsers(memberIds, groupInfo.target);
         conversationMemberAdapter.setMembers(members);
         conversationMemberAdapter.setOnMemberClickListener(this);
-
         memberReclerView.setAdapter(conversationMemberAdapter);
         memberReclerView.setLayoutManager(new GridLayoutManager(getActivity(), 5));
-        stickTopSwitchButton.setChecked(conversationInfo.isTop);
-        silentSwitchButton.setChecked(conversationInfo.isSilent);
-        stickTopSwitchButton.setOnCheckedChangeListener(this);
-        silentSwitchButton.setOnCheckedChangeListener(this);
+        memberReclerView.setNestedScrollingEnabled(false);
+        memberReclerView.setHasFixedSize(true);
+        memberReclerView.setFocusable(false);
+
     }
 
     @OnClick(R.id.groupNameOptionItemView)
     void updateGroupName() {
-        Intent intent = new Intent(getActivity(), SetGroupNameActivity.class);
-        intent.putExtra("groupInfo", groupInfo);
-        startActivityForResult(intent, REQUEST_CODE_SET_GROUP_NAME);
+        if (groupInfo.type != GroupInfo.GroupType.Restricted
+                || (groupMember.type == GroupMember.GroupMemberType.Manager || groupMember.type == GroupMember.GroupMemberType.Owner)) {
+            Intent intent = new Intent(getActivity(), SetGroupNameActivity.class);
+            intent.putExtra("groupInfo", groupInfo);
+            startActivity(intent);
+        }
     }
 
     @OnClick(R.id.groupNoticeLinearLayout)
@@ -187,7 +274,9 @@ public class GroupConversationInfoFragment extends Fragment implements Conversat
 
     @OnClick(R.id.groupManageOptionItemView)
     void manageGroup() {
-        // TODO
+        Intent intent = new Intent(getActivity(), GroupManageActivity.class);
+        intent.putExtra("groupInfo", groupInfo);
+        startActivity(intent);
     }
 
     @OnClick(R.id.myGroupNickNameOptionItemView)
@@ -195,15 +284,11 @@ public class GroupConversationInfoFragment extends Fragment implements Conversat
         MaterialDialog dialog = new MaterialDialog.Builder(getActivity())
                 .input("请输入你的群昵称", groupMember.alias, false, (dialog1, input) -> {
                     groupViewModel.modifyMyGroupAlias(groupInfo.target, input.toString().trim())
-                            .observe(GroupConversationInfoFragment.this, new Observer<OperateResult>() {
-                                @Override
-                                public void onChanged(@Nullable OperateResult operateResult) {
-                                    if (operateResult.isSuccess()) {
-                                        myGroupNickNameOptionItemView.setRightText(input.toString().trim());
-                                    } else {
-                                        Toast.makeText(getActivity(), "修改群昵称失败:" + operateResult.getErrorCode(), Toast.LENGTH_SHORT).show();
-
-                                    }
+                            .observe(GroupConversationInfoFragment.this, operateResult -> {
+                                if (operateResult.isSuccess()) {
+                                    myGroupNickNameOptionItemView.setRightText(input.toString().trim());
+                                } else {
+                                    Toast.makeText(getActivity(), "修改群昵称失败:" + operateResult.getErrorCode(), Toast.LENGTH_SHORT).show();
                                 }
                             });
                 })
@@ -218,13 +303,25 @@ public class GroupConversationInfoFragment extends Fragment implements Conversat
 
     @OnClick(R.id.quitButton)
     void quitGroup() {
-        groupViewModel.quitGroup(conversationInfo.conversation.target, Collections.singletonList(0)).observe(this, aBoolean -> {
-            if (aBoolean != null && aBoolean) {
-                getActivity().finish();
-            } else {
-                Toast.makeText(getActivity(), "退出群组失败", Toast.LENGTH_SHORT).show();
-            }
-        });
+        if (groupInfo != null && userViewModel.getUserId().equals(groupInfo.owner)) {
+            groupViewModel.dismissGroup(conversationInfo.conversation.target, Collections.singletonList(0)).observe(this, aBoolean -> {
+                if (aBoolean != null && aBoolean) {
+                    Intent intent = new Intent(getActivity(), MainActivity.class);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(getActivity(), "退出群组失败", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            groupViewModel.quitGroup(conversationInfo.conversation.target, Collections.singletonList(0)).observe(this, aBoolean -> {
+                if (aBoolean != null && aBoolean) {
+                    Intent intent = new Intent(getActivity(), MainActivity.class);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(getActivity(), "退出群组失败", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
 
     @OnClick(R.id.clearMessagesOptionItemView)
@@ -234,14 +331,23 @@ public class GroupConversationInfoFragment extends Fragment implements Conversat
 
     @OnClick(R.id.groupQRCodeOptionItemView)
     void showGroupQRCode() {
-        String qrCodeValue = Config.QR_CODE_PREFIX_GROUP + groupInfo.target;
+        String qrCodeValue = WfcScheme.QR_CODE_PREFIX_GROUP + groupInfo.target;
         Intent intent = QRCodeActivity.buildQRCodeIntent(getActivity(), "群二维码", groupInfo.portrait, qrCodeValue);
         startActivity(intent);
     }
 
+    @OnClick(R.id.searchMessageOptionItemView)
+    void searchGroupMessage() {
+        Intent intent = new Intent(getActivity(), SearchMessageActivity.class);
+        intent.putExtra("conversation", conversationInfo.conversation);
+        startActivity(intent);
+    }
 
     @Override
     public void onUserMemberClick(UserInfo userInfo) {
+        if (groupInfo != null && groupInfo.privateChat == 1 && groupMember.type == GroupMember.GroupMemberType.Normal) {
+            return;
+        }
         Intent intent = new Intent(getActivity(), UserInfoActivity.class);
         intent.putExtra("userInfo", userInfo);
         startActivity(intent);
@@ -251,7 +357,7 @@ public class GroupConversationInfoFragment extends Fragment implements Conversat
     public void onAddMemberClick() {
         Intent intent = new Intent(getActivity(), AddGroupMemberActivity.class);
         intent.putExtra("groupInfo", groupInfo);
-        startActivityForResult(intent, REQUEST_ADD_MEMBER);
+        startActivity(intent);
     }
 
     @Override
@@ -259,52 +365,8 @@ public class GroupConversationInfoFragment extends Fragment implements Conversat
         if (groupInfo != null) {
             Intent intent = new Intent(getActivity(), RemoveGroupMemberActivity.class);
             intent.putExtra("groupInfo", groupInfo);
-            startActivityForResult(intent, REQUEST_REMOVE_MEMBER);
+            startActivity(intent);
         }
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        switch (requestCode) {
-            case REQUEST_ADD_MEMBER:
-                if (resultCode == AddGroupMemberActivity.RESULT_ADD_SUCCESS) {
-                    List<String> memberIds = data.getStringArrayListExtra("memberIds");
-                    addGroupMember(memberIds);
-                }
-                break;
-            case REQUEST_REMOVE_MEMBER:
-                if (resultCode == RemoveGroupMemberActivity.RESULT_REMOVE_SUCCESS) {
-                    List<String> memberIds = data.getStringArrayListExtra("memberIds");
-                    removeGroupMember(memberIds);
-                }
-                break;
-            case REQUEST_CODE_SET_GROUP_NAME:
-                if (resultCode == SetGroupNameActivity.RESULT_SET_GROUP_NAME_SUCCESS) {
-                    groupNameOptionItemView.setRightText(data.getStringExtra("groupName"));
-                }
-                break;
-            default:
-                super.onActivityResult(requestCode, resultCode, data);
-                break;
-        }
-    }
-
-    private void addGroupMember(List<String> memberIds) {
-        if (memberIds == null || memberIds.isEmpty()) {
-            return;
-        }
-        List<UserInfo> userInfos = userViewModel.getUserInfos(memberIds);
-        if (userInfos == null) {
-            return;
-        }
-        conversationMemberAdapter.addMembers(userInfos);
-    }
-
-    private void removeGroupMember(List<String> memberIds) {
-        if (memberIds == null || memberIds.isEmpty()) {
-            return;
-        }
-        conversationMemberAdapter.removeMembers(memberIds);
     }
 
     private void stickTop(boolean top) {

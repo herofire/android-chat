@@ -5,6 +5,7 @@ import android.widget.TextView;
 
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
+
 import butterknife.Bind;
 import cn.wildfire.chat.kit.annotation.LayoutRes;
 import cn.wildfire.chat.kit.annotation.MessageContentType;
@@ -15,6 +16,10 @@ import cn.wildfirechat.message.notification.ChangeGroupNameNotificationContent;
 import cn.wildfirechat.message.notification.ChangeGroupPortraitNotificationContent;
 import cn.wildfirechat.message.notification.CreateGroupNotificationContent;
 import cn.wildfirechat.message.notification.DismissGroupNotificationContent;
+import cn.wildfirechat.message.notification.GroupJoinTypeNotificationContent;
+import cn.wildfirechat.message.notification.GroupMuteNotificationContent;
+import cn.wildfirechat.message.notification.GroupPrivateChatNotificationContent;
+import cn.wildfirechat.message.notification.GroupSetManagerChatNotificationContent;
 import cn.wildfirechat.message.notification.KickoffGroupMemberNotificationContent;
 import cn.wildfirechat.message.notification.ModifyGroupAliasNotificationContent;
 import cn.wildfirechat.message.notification.NotificationMessageContent;
@@ -36,6 +41,10 @@ import cn.wildfirechat.message.notification.TransferGroupOwnerNotificationConten
         TransferGroupOwnerNotificationContent.class,
         TipNotificationContent.class,
         RecallMessageContent.class,
+        GroupMuteNotificationContent.class,
+        GroupPrivateChatNotificationContent.class,
+        GroupJoinTypeNotificationContent.class,
+        GroupSetManagerChatNotificationContent.class
         // TODO add more
 
 })
@@ -67,7 +76,7 @@ public class SimpleNotificationMessageContentViewHolder extends MessageContentVi
     protected void onBind(UiMessage message) {
         String notification;
         try {
-            notification = ((NotificationMessageContent) message.message.content).formatNotification();
+            notification = ((NotificationMessageContent) message.message.content).formatNotification(message.message);
         } catch (Exception e) {
             e.printStackTrace();
             notification = "message is invalid";

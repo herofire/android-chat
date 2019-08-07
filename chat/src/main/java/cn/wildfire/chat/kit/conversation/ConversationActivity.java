@@ -14,9 +14,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
-import java.util.List;
-import java.util.Map;
-
 import androidx.annotation.Nullable;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
@@ -25,16 +22,24 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SimpleItemAnimator;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import butterknife.Bind;
 import butterknife.OnTouch;
 import cn.wildfire.chat.kit.ChatManagerHolder;
+import cn.wildfire.chat.kit.IMServiceStatusViewModel;
 import cn.wildfire.chat.kit.WfcBaseActivity;
+import cn.wildfire.chat.kit.WfcUIKit;
 import cn.wildfire.chat.kit.channel.ChannelViewModel;
 import cn.wildfire.chat.kit.chatroom.ChatRoomViewModel;
 import cn.wildfire.chat.kit.common.OperateResult;
 import cn.wildfire.chat.kit.conversation.ext.core.ConversationExtension;
 import cn.wildfire.chat.kit.conversation.mention.MentionSpan;
 import cn.wildfire.chat.kit.conversation.message.model.UiMessage;
+import cn.wildfire.chat.kit.group.GroupViewModel;
 import cn.wildfire.chat.kit.third.utils.UIUtils;
 import cn.wildfire.chat.kit.user.UserInfoActivity;
 import cn.wildfire.chat.kit.user.UserViewModel;
@@ -50,8 +55,10 @@ import cn.wildfirechat.model.ChannelInfo;
 import cn.wildfirechat.model.ChatRoomInfo;
 import cn.wildfirechat.model.Conversation;
 import cn.wildfirechat.model.GroupInfo;
+import cn.wildfirechat.model.GroupMember;
 import cn.wildfirechat.model.UserInfo;
 import cn.wildfirechat.remote.ChatManager;
+import cn.wildfirechat.remote.UserSettingScope;
 
 public class ConversationActivity extends WfcBaseActivity implements
         KeyboardAwareLinearLayout.OnKeyboardShownListener,
@@ -82,6 +89,8 @@ public class ConversationActivity extends WfcBaseActivity implements
     private boolean moveToBottom = true;
     private ConversationViewModel conversationViewModel;
     private UserViewModel userViewModel;
+    private IMServiceStatusViewModel imServiceStatusViewModel;
+    private boolean isInitialized = false;
     private ChatRoomViewModel chatRoomViewModel;
 
     private Handler handler;
@@ -90,6 +99,10 @@ public class ConversationActivity extends WfcBaseActivity implements
     private String channelPrivateChatUser;
     private String conversationTitle = "";
     private SharedPreferences sharedPreferences;
+    private LinearLayoutManager layoutManager;
+
+    private GroupInfo groupInfo;
+    private boolean showGroupMemberName = false;
 
     private Observer<UiMessage> messageLiveDataObserver = new Observer<UiMessage>() {
         @Override
@@ -104,7 +117,15 @@ public class ConversationActivity extends WfcBaseActivity implements
                 }
                 adapter.addNewMessage(uiMessage);
                 if (moveToBottom || uiMessage.message.sender.equals(ChatManager.Instance().getUserId())) {
-                    UIUtils.postTaskDelay(() -> recyclerView.smoothScrollToPosition(adapter.getItemCount() - 1), 100);
+                    UIUtils.postTaskDelay(() -> {
+
+                                int position = adapter.getItemCount() - 1;
+                                if (position < 0) {
+                                    return;
+                                }
+                                recyclerView.scrollToPosition(position);
+                            },
+                            100);
                 }
             }
             if (content instanceof TypingMessageContent && uiMessage.message.direction == MessageDirection.Receive) {
@@ -160,8 +181,19 @@ public class ConversationActivity extends WfcBaseActivity implements
     private Observer<List<UserInfo>> userInfoUpdateLiveDataObserver = new Observer<List<UserInfo>>() {
         @Override
         public void onChanged(@Nullable List<UserInfo> userInfos) {
-            adapter.updateUserInfos(userInfos);
+            if (conversation.type == Conversation.ConversationType.Single) {
+                conversationTitle = null;
+                setTitle();
+            }
+            int start = layoutManager.findFirstVisibleItemPosition();
+            int end = layoutManager.findLastVisibleItemPosition();
+            adapter.notifyItemRangeChanged(start, end - start, userInfos);
         }
+    };
+
+    private Observer<Object> clearMessageLiveDataObserver = (obj) -> {
+        adapter.setMessages(new ArrayList<>());
+        adapter.notifyDataSetChanged();
     };
 
     @Override
@@ -173,6 +205,16 @@ public class ConversationActivity extends WfcBaseActivity implements
 
     @Override
     protected void afterViews() {
+        imServiceStatusViewModel = WfcUIKit.getAppScopeViewModel(IMServiceStatusViewModel.class);
+        imServiceStatusViewModel.imServiceStatusLiveData().observe(this, aBoolean -> {
+            if (!isInitialized && aBoolean) {
+                init();
+                isInitialized = true;
+            }
+        });
+    }
+
+    private void init() {
         initView();
         sharedPreferences = getSharedPreferences("sticker", Context.MODE_PRIVATE);
         Intent intent = getIntent();
@@ -226,14 +268,20 @@ public class ConversationActivity extends WfcBaseActivity implements
         handler = new Handler();
         rootLinearLayout.addOnKeyboardShownListener(this);
 
-        swipeRefreshLayout.setOnRefreshListener(() -> loadMoreOldMessages());
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+            if (adapter.getMessages() == null || adapter.getMessages().isEmpty()) {
+                swipeRefreshLayout.setRefreshing(false);
+                return;
+            }
+            loadMoreOldMessages();
+        });
 
         // message list
         adapter = new ConversationMessageAdapter(this);
         adapter.setOnPortraitClickListener(this);
         adapter.setOnPortraitLongClickListener(this);
-        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
-        recyclerView.setLayoutManager(linearLayoutManager);
+        layoutManager = new LinearLayoutManager(this);
+        recyclerView.setLayoutManager(layoutManager);
         recyclerView.setAdapter(adapter);
         ((SimpleItemAnimator) recyclerView.getItemAnimator()).setSupportsChangeAnimations(false);
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -247,7 +295,7 @@ public class ConversationActivity extends WfcBaseActivity implements
                 if (!recyclerView.canScrollVertically(1)) {
                     moveToBottom = true;
                     if (initialFocusedMessageId != -1 && !loadingNewMessage && shouldContinueLoadNewMessage) {
-                        int lastVisibleItem = linearLayoutManager.findLastCompletelyVisibleItemPosition();
+                        int lastVisibleItem = layoutManager.findLastCompletelyVisibleItemPosition();
                         if (lastVisibleItem > adapter.getItemCount() - 3) {
                             loadMoreNewMessages();
                         }
@@ -263,7 +311,6 @@ public class ConversationActivity extends WfcBaseActivity implements
     }
 
     private void setupConversation(Conversation conversation) {
-        // FIXME: 2018/11/24 崩溃，重启之后，conversation是null
         if (conversationViewModel == null) {
             conversationViewModel = ViewModelProviders.of(this, new ConversationViewModelFactory(conversation, channelPrivateChatUser)).get(ConversationViewModel.class);
 
@@ -271,11 +318,52 @@ public class ConversationActivity extends WfcBaseActivity implements
             conversationViewModel.messageUpdateLiveData().observeForever(messageUpdateLiveDatObserver);
             conversationViewModel.messageRemovedLiveData().observeForever(messageRemovedLiveDataObserver);
             conversationViewModel.mediaUpdateLiveData().observeForever(mediaUploadedLiveDataObserver);
+            conversationViewModel.clearMessageLiveData().observeForever(clearMessageLiveDataObserver);
 
-            userViewModel = ViewModelProviders.of(this).get(UserViewModel.class);
+            userViewModel = WfcUIKit.getAppScopeViewModel(UserViewModel.class);
             userViewModel.userInfoLiveData().observeForever(userInfoUpdateLiveDataObserver);
         } else {
             conversationViewModel.setConversation(conversation, channelPrivateChatUser);
+        }
+
+        if (conversation.type == Conversation.ConversationType.Group) {
+            GroupViewModel groupViewModel = ViewModelProviders.of(this).get(GroupViewModel.class);
+            groupInfo = groupViewModel.getGroupInfo(conversation.target, false);
+            groupViewModel.groupInfoUpdateLiveData().observe(this, groupInfos -> {
+                for (GroupInfo info : groupInfos) {
+                    if (info.target.equals(groupInfo.target)) {
+                        groupInfo = info;
+                        if (groupInfo.mute == 1) {
+                            GroupMember groupMember = groupViewModel.getGroupMember(groupInfo.target, userViewModel.getUserId());
+                            if (groupMember.type != GroupMember.GroupMemberType.Owner && groupMember.type != GroupMember.GroupMemberType.Manager) {
+                                inputPanel.disableInput("全员禁言中");
+                            } else {
+                                inputPanel.enableInput();
+                            }
+                        } else {
+                            inputPanel.enableInput();
+                        }
+                        setTitle();
+                        adapter.notifyDataSetChanged();
+                    }
+                }
+            });
+
+            showGroupMemberName = "1".equals(userViewModel.getUserSetting(UserSettingScope.GroupHideNickname, groupInfo.target));
+            userViewModel.settingUpdatedLiveData().observe(this, o -> {
+                boolean showGroupMemberName = "1".equals(userViewModel.getUserSetting(UserSettingScope.GroupHideNickname, groupInfo.target));
+                if (this.showGroupMemberName != showGroupMemberName) {
+                    this.showGroupMemberName = showGroupMemberName;
+                    adapter.notifyDataSetChanged();
+                }
+            });
+
+            if (groupInfo.mute == 1) {
+                GroupMember groupMember = groupViewModel.getGroupMember(groupInfo.target, userViewModel.getUserId());
+                if (groupMember.type != GroupMember.GroupMemberType.Owner && groupMember.type != GroupMember.GroupMemberType.Manager) {
+                    inputPanel.disableInput("全员禁言中");
+                }
+            }
         }
 
         inputPanel.setupConversation(conversationViewModel, conversation);
@@ -333,6 +421,7 @@ public class ConversationActivity extends WfcBaseActivity implements
                                 content.tip = String.format(welcome, "<" + userId + ">");
                             }
                             conversationViewModel.sendMessage(content);
+                            loadMoreOldMessages();
                             setChatRoomConversationTitle();
 
                         } else {
@@ -375,9 +464,8 @@ public class ConversationActivity extends WfcBaseActivity implements
 
         if (conversation.type == Conversation.ConversationType.Single) {
             UserInfo userInfo = ChatManagerHolder.gChatManager.getUserInfo(conversation.target, false);
-            conversationTitle = userInfo.displayName;
+            conversationTitle = userViewModel.getUserDisplayName(userInfo);
         } else if (conversation.type == Conversation.ConversationType.Group) {
-            GroupInfo groupInfo = ChatManagerHolder.gChatManager.getGroupInfo(conversation.target, false);
             if (groupInfo != null) {
                 conversationTitle = groupInfo.name;
             }
@@ -391,7 +479,7 @@ public class ConversationActivity extends WfcBaseActivity implements
             if (!TextUtils.isEmpty(channelPrivateChatUser)) {
                 UserInfo channelPrivateChatUserInfo = userViewModel.getUserInfo(channelPrivateChatUser, false);
                 if (channelPrivateChatUserInfo != null) {
-                    conversationTitle += "@" + channelPrivateChatUserInfo.displayName;
+                    conversationTitle += "@" + userViewModel.getUserDisplayName(channelPrivateChatUserInfo);
                 } else {
                     conversationTitle += "@<" + channelPrivateChatUser + ">";
                 }
@@ -446,7 +534,7 @@ public class ConversationActivity extends WfcBaseActivity implements
             SpannableString spannableString = mentionSpannable(userInfo);
             inputPanel.editText.getEditableText().insert(position, spannableString);
         } else {
-            inputPanel.editText.getEditableText().insert(position, userInfo.displayName);
+            inputPanel.editText.getEditableText().insert(position, userViewModel.getUserDisplayName(userInfo));
         }
     }
 
@@ -461,7 +549,8 @@ public class ConversationActivity extends WfcBaseActivity implements
             if (isMentionAll) {
                 spannableString = mentionAllSpannable();
             } else {
-                UserInfo userInfo = data.getParcelableExtra("contact");
+                String userId = data.getStringExtra("userId");
+                UserInfo userInfo = userViewModel.getUserInfo(userId, false);
                 spannableString = mentionSpannable(userInfo);
             }
             int position = inputPanel.editText.getSelectionEnd();
@@ -503,7 +592,9 @@ public class ConversationActivity extends WfcBaseActivity implements
         conversationViewModel.messageUpdateLiveData().removeObserver(messageUpdateLiveDatObserver);
         conversationViewModel.messageRemovedLiveData().removeObserver(messageRemovedLiveDataObserver);
         conversationViewModel.mediaUpdateLiveData().removeObserver(mediaUploadedLiveDataObserver);
+        conversationViewModel.clearMessageLiveData().removeObserver(clearMessageLiveDataObserver);
         userViewModel.userInfoLiveData().removeObserver(userInfoUpdateLiveDataObserver);
+        inputPanel.onDestroy();
     }
 
     @Override
@@ -535,11 +626,14 @@ public class ConversationActivity extends WfcBaseActivity implements
     }
 
     private void loadMoreOldMessages() {
-        long fromIndex = Long.MAX_VALUE;
+        long fromMessageId = Long.MAX_VALUE;
+        long fromMessageUid = Long.MAX_VALUE;
         if (adapter.getMessages() != null && !adapter.getMessages().isEmpty()) {
-            fromIndex = adapter.getItem(0).message.messageId;
+            fromMessageId = adapter.getItem(0).message.messageId;
+            fromMessageUid = adapter.getItem(0).message.messageUid;
         }
-        conversationViewModel.loadOldMessages(fromIndex, MESSAGE_LOAD_COUNT_PER_TIME)
+
+        conversationViewModel.loadOldMessages(fromMessageId, fromMessageUid, MESSAGE_LOAD_COUNT_PER_TIME)
                 .observe(this, uiMessages -> {
                     adapter.addMessagesAtHead(uiMessages);
 

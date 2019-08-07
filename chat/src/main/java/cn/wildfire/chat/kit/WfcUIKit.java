@@ -10,23 +10,30 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleObserver;
 import androidx.lifecycle.OnLifecycleEvent;
 import androidx.lifecycle.ProcessLifecycleOwner;
+import androidx.lifecycle.ViewModel;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.lifecycle.ViewModelStore;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.request.RequestOptions;
 import com.lqr.emoji.LQREmotionKit;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 import cn.wildfire.chat.app.Config;
+import cn.wildfire.chat.kit.common.AppScopeViewModel;
 import cn.wildfire.chat.kit.voip.AsyncPlayer;
 import cn.wildfire.chat.kit.voip.SingleVoipCallActivity;
 import cn.wildfirechat.avenginekit.AVEngineKit;
+import cn.wildfirechat.chat.BuildConfig;
 import cn.wildfirechat.chat.R;
 import cn.wildfirechat.client.NotInitializedExecption;
 import cn.wildfirechat.message.Message;
@@ -40,10 +47,12 @@ import cn.wildfirechat.remote.OnReceiveMessageListener;
 public class WfcUIKit implements AVEngineKit.AVEngineCallback, OnReceiveMessageListener, OnRecallMessageListener {
 
     private boolean isBackground = true;
-    private Application application;
+    private static Application application;
+    private static ViewModelProvider viewModelProvider;
+    private ViewModelStore viewModelStore;
 
     public void init(Application application) {
-        this.application = application;
+        WfcUIKit.application = application;
         initWFClient(application);
         //初始化表情控件
         LQREmotionKit.init(application, (context, path, imageView) -> Glide.with(context).load(path).apply(new RequestOptions().centerCrop().diskCacheStrategy(DiskCacheStrategy.RESOURCE).dontAnimate()).into(imageView));
@@ -59,8 +68,13 @@ public class WfcUIKit implements AVEngineKit.AVEngineCallback, OnReceiveMessageL
             @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
             public void onBackground() {
                 isBackground = true;
+                viewModelStore.clear();
             }
         });
+
+        viewModelStore = new ViewModelStore();
+        ViewModelProvider.Factory factory = ViewModelProvider.AndroidViewModelFactory.getInstance(application);
+        viewModelProvider = new ViewModelProvider(viewModelStore, factory);
     }
 
     private void initWFClient(Application application) {
@@ -70,7 +84,7 @@ public class WfcUIKit implements AVEngineKit.AVEngineCallback, OnReceiveMessageL
             ChatManagerHolder.gChatManager.startLog();
             ChatManagerHolder.gChatManager.addOnReceiveMessageListener(this);
             ChatManagerHolder.gChatManager.addRecallMessageListener(this);
-            PushService.init(application);
+            PushService.init(application, BuildConfig.APPLICATION_ID);
 
             ringPlayer = new AsyncPlayer(null);
             AVEngineKit.init(application, this);
@@ -86,6 +100,16 @@ public class WfcUIKit implements AVEngineKit.AVEngineCallback, OnReceiveMessageL
         } catch (NotInitializedExecption notInitializedExecption) {
             notInitializedExecption.printStackTrace();
         }
+    }
+
+    /**
+     * 当{@link androidx.lifecycle.ViewModel} 需要跨{@link android.app.Activity} 共享数据时使用
+     */
+    public static <T extends ViewModel> T getAppScopeViewModel(@NonNull Class<T> modelClass) {
+        if (!AppScopeViewModel.class.isAssignableFrom(modelClass)) {
+            throw new IllegalArgumentException("the model class should be subclass of AppScopeViewModel");
+        }
+        return viewModelProvider.get(modelClass);
     }
 
     @Override
@@ -142,9 +166,11 @@ public class WfcUIKit implements AVEngineKit.AVEngineCallback, OnReceiveMessageL
             if (messages == null) {
                 return;
             }
+
+            List<Message> msgs = new ArrayList<>(messages);
             long now = System.currentTimeMillis();
             long delta = ChatManager.Instance().getServerDeltaTime();
-            Iterator<Message> iterator = messages.iterator();
+            Iterator<Message> iterator = msgs.iterator();
             while (iterator.hasNext()) {
                 Message message = iterator.next();
                 if (message.content.getPersistFlag() == PersistFlag.No_Persist
@@ -152,7 +178,7 @@ public class WfcUIKit implements AVEngineKit.AVEngineCallback, OnReceiveMessageL
                     iterator.remove();
                 }
             }
-            WfcNotificationManager.getInstance().handleReceiveMessage(application, messages);
+            WfcNotificationManager.getInstance().handleReceiveMessage(application, msgs);
         } else {
             // do nothing
         }

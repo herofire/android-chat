@@ -1,15 +1,14 @@
 package cn.wildfirechat.message.notification;
 
 import android.os.Parcel;
-import android.os.Parcelable;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import cn.wildfirechat.message.Message;
 import cn.wildfirechat.message.core.ContentTag;
 import cn.wildfirechat.message.core.MessagePayload;
 import cn.wildfirechat.message.core.PersistFlag;
-import cn.wildfirechat.model.UserInfo;
 import cn.wildfirechat.remote.ChatManager;
 
 import static cn.wildfirechat.message.core.MessageContentType.ContentType_CHANGE_GROUP_PORTRAIT;
@@ -19,20 +18,19 @@ import static cn.wildfirechat.message.core.MessageContentType.ContentType_CHANGE
  */
 
 @ContentTag(type = ContentType_CHANGE_GROUP_PORTRAIT, flag = PersistFlag.Persist)
-public class ChangeGroupPortraitNotificationContent extends NotificationMessageContent {
+public class ChangeGroupPortraitNotificationContent extends GroupNotificationMessageContent {
     public String operateUser;
 
     public ChangeGroupPortraitNotificationContent() {
     }
 
     @Override
-    public String formatNotification() {
+    public String formatNotification(Message message) {
         StringBuilder sb = new StringBuilder();
         if (fromSelf) {
             sb.append("您");
         } else {
-            UserInfo userInfo = ChatManager.Instance().getUserInfo(operateUser, false);
-            sb.append(userInfo.displayName);
+            sb.append(ChatManager.Instance().getGroupMemberDisplayName(groupId, operateUser));
         }
         sb.append("更新了群头像");
 
@@ -45,6 +43,7 @@ public class ChangeGroupPortraitNotificationContent extends NotificationMessageC
 
         try {
             JSONObject objWrite = new JSONObject();
+            objWrite.put("g", groupId);
             objWrite.put("o", operateUser);
             payload.binaryContent = objWrite.toString().getBytes();
         } catch (JSONException e) {
@@ -58,18 +57,13 @@ public class ChangeGroupPortraitNotificationContent extends NotificationMessageC
         try {
             if (payload.binaryContent != null) {
                 JSONObject jsonObject = new JSONObject(new String(payload.binaryContent));
+                groupId = jsonObject.optString("g");
                 operateUser = jsonObject.optString("o");
             }
         } catch (JSONException e) {
             e.printStackTrace();
         }
     }
-
-    @Override
-    public String digest() {
-        return formatNotification();
-    }
-
 
     @Override
     public int describeContents() {
@@ -79,15 +73,21 @@ public class ChangeGroupPortraitNotificationContent extends NotificationMessageC
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(this.operateUser);
+        dest.writeString(this.groupId);
         dest.writeByte(this.fromSelf ? (byte) 1 : (byte) 0);
+        dest.writeInt(this.mentionedType);
+        dest.writeStringList(this.mentionedTargets);
     }
 
     protected ChangeGroupPortraitNotificationContent(Parcel in) {
         this.operateUser = in.readString();
+        this.groupId = in.readString();
         this.fromSelf = in.readByte() != 0;
+        this.mentionedType = in.readInt();
+        this.mentionedTargets = in.createStringArrayList();
     }
 
-    public static final Parcelable.Creator<ChangeGroupPortraitNotificationContent> CREATOR = new Parcelable.Creator<ChangeGroupPortraitNotificationContent>() {
+    public static final Creator<ChangeGroupPortraitNotificationContent> CREATOR = new Creator<ChangeGroupPortraitNotificationContent>() {
         @Override
         public ChangeGroupPortraitNotificationContent createFromParcel(Parcel source) {
             return new ChangeGroupPortraitNotificationContent(source);

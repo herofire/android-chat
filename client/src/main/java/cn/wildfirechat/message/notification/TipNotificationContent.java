@@ -2,6 +2,7 @@ package cn.wildfirechat.message.notification;
 
 import android.os.Parcel;
 
+import cn.wildfirechat.message.Message;
 import cn.wildfirechat.message.core.ContentTag;
 import cn.wildfirechat.message.core.MessagePayload;
 import cn.wildfirechat.message.core.PersistFlag;
@@ -21,7 +22,7 @@ public class TipNotificationContent extends NotificationMessageContent {
 
 
     @Override
-    public String formatNotification() {
+    public String formatNotification(Message message) {
         return tip;
     }
 
@@ -38,11 +39,6 @@ public class TipNotificationContent extends NotificationMessageContent {
         tip = payload.content;
     }
 
-    @Override
-    public String digest() {
-        return formatNotification();
-    }
-
 
     @Override
     public int describeContents() {
@@ -51,11 +47,17 @@ public class TipNotificationContent extends NotificationMessageContent {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeString(this.tip == null ? "" : this.tip);
+        dest.writeString(this.tip);
+        dest.writeByte(this.fromSelf ? (byte) 1 : (byte) 0);
+        dest.writeInt(this.mentionedType);
+        dest.writeStringList(this.mentionedTargets);
     }
 
     protected TipNotificationContent(Parcel in) {
         this.tip = in.readString();
+        this.fromSelf = in.readByte() != 0;
+        this.mentionedType = in.readInt();
+        this.mentionedTargets = in.createStringArrayList();
     }
 
     public static final Creator<TipNotificationContent> CREATOR = new Creator<TipNotificationContent>() {
